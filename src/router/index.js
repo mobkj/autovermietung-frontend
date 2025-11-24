@@ -23,13 +23,13 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: LoginView,
-      meta: { guestOnly: true },
+      meta: { guestOnly: true, hideFooter: true },
     },
     {
       path: '/register',
       name: 'register',
       component: RegisterView,
-      meta: { guestOnly: true },
+      meta: { guestOnly: true, hideFooter: true },
     },
     {
       path: '/contact',

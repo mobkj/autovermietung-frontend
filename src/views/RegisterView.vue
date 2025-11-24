@@ -185,6 +185,7 @@ const submit = async () => {
 
 <template>
   <div class="auth-wrapper">
+    <profile-navbar />
     <div class="auth-card">
       <h2 class="title">Registrieren</h2>
       <p class="subtitle">Erstelle dein Konto bei Mazari Autovermietung</p>
@@ -438,157 +439,188 @@ const submit = async () => {
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
+/* FULL SCREEN CENTER */
 .auth-wrapper {
-  min-height: 100vh;
-  display: flex;
+  min-height: 100dvh;
+  display: flex; /* WICHTIG: fehlte */
   justify-content: center;
-  align-items: center;
-  background: #e8f0fb; /* helles Blau (Mazari-Style) */
+  align-items: flex-start; /* Card startet oben, nicht am Boden */
+
+  background: transparent;
   font-family: 'Inter', sans-serif;
+
+  /* EINMAL padding setzen (kein Override mehr) */
+  padding-inline: clamp(18px, 4vw, 40px);
+  padding-top: clamp(30px, 6vh, 70px);
+  padding-bottom: clamp(40px, 8vh, 110px); /* richtig viel Luft unten */
 }
 
+/* CARD */
 .auth-card {
   width: 100%;
-  max-width: 620px;
-  background: white;
-  padding: 36px 38px;
+  max-width: 760px;
+  margin: 0 auto;
+  background: #fff;
+  padding: clamp(22px, 3.5vw, 38px);
   border-radius: 18px;
+  border: 1px solid rgba(6, 69, 127, 0.1);
+  margin-bottom: clamp(24px, 6vh, 90px);
+
   box-shadow:
-    0 8px 18px rgba(15, 23, 42, 0.06),
-    0 18px 45px rgba(15, 23, 42, 0.08);
+    0 10px 28px rgba(15, 23, 42, 0.1),
+    0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
+/* Titles */
 .title {
-  font-size: 26px;
-  font-weight: 700;
-  color: #06457f;
+  font-size: clamp(22px, 2.6vw, 26px);
+  font-weight: 800;
+  color: var(--mazari-text-dark);
   margin-bottom: 6px;
 }
 
 .subtitle {
-  margin-bottom: 20px;
-  color: #475569;
+  margin-bottom: 18px;
+  color: #667085;
   font-size: 14px;
+  font-weight: 600;
 }
 
-/* STEPPER */
+/* ---------------- STEPPER (Premium + Mobile sichtbar) ---------------- */
 .stepper {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 24px;
+  margin-bottom: 22px;
+
+  background: #f8fafc;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid #e6eaf0;
 }
 
+/* Step Item */
 .step {
   display: flex;
-  flex-direction: column;
   align-items: center;
+  gap: 8px;
   flex: 1;
+  min-width: 0;
 }
 
+/* Circle */
 .step-circle {
   width: 30px;
   height: 30px;
   border-radius: 999px;
   border: 2px solid #cbd5e1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
+
+  display: grid;
+  place-items: center;
+
+  font-size: 13px;
+  font-weight: 800;
   color: #64748b;
   background: white;
   transition: 0.2s;
 }
 
+/* Label */
 .step-label {
-  margin-top: 6px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   color: #64748b;
-  text-align: center;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Aktiver Step */
+/* Active */
 .step.active .step-circle {
-  border-color: #0474c4;
-  background: #0474c4;
-  color: white;
+  border-color: var(--mazari-primary);
+  background: var(--mazari-primary);
+  color: #fff;
 }
-
 .step.active .step-label {
-  color: #0474c4;
+  color: var(--mazari-primary);
 }
 
-/* Fertiger Step */
+/* Done */
 .step.done .step-circle {
   border-color: #22c55e;
   background: #22c55e;
-  color: white;
+  color: #fff;
 }
 .step.done .step-label {
-  color: #22c55e;
+  color: #16a34a;
 }
 
-/* Linien */
+/* Line zwischen Steps */
 .step-line {
   height: 2px;
   flex: 1;
   background: #cbd5e1;
   border-radius: 999px;
 }
-
 .step-line.filled {
-  background: #0474c4;
+  background: var(--mazari-primary);
 }
 
-/* FORM CONTENT */
+/* ---------------- FORM ---------------- */
 .step-content {
   margin-top: 10px;
 }
 
 .input-row {
   display: flex;
-  gap: 15px;
+  gap: 12px;
 }
 
 .input-group {
   flex: 1;
   display: flex;
   flex-direction: column;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 label {
   margin-bottom: 6px;
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 700;
+  font-size: 13.5px;
   color: #0f172a;
 }
 
 input {
-  padding: 11px 12px;
-  border-radius: 8px;
+  padding: 9px 12px;
+  border-radius: 10px;
   border: 1.6px solid #cbd5e1;
   transition: 0.18s;
-  font-size: 14px;
+  font-size: 16px;
+  background: #f8fafc;
 }
 
 input:focus {
-  border-color: #0474c4;
-  box-shadow: 0 0 0 3px rgba(4, 116, 196, 0.18);
+  border-color: var(--mazari-primary);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(4, 116, 196, 0.16);
   outline: none;
 }
 
-/* Valid / Error States */
+.stepper {
+  touch-action: pan-y; /* vertikales Scrollen hat Priorität */
+}
+/* Valid / Error */
 .input-error {
   border-color: #ef4444 !important;
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.12);
+  background: #fffafa;
 }
 
 .input-valid {
   border-color: #22c55e !important;
-  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.15);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.12);
+  background: #f6fffb;
 }
 
 /* Passwort-Regeln */
@@ -598,16 +630,13 @@ input:focus {
   margin: 8px 0 0;
   font-size: 12px;
 }
-
 .pw-rules li {
   margin-bottom: 3px;
   color: #6b7280;
 }
-
 .pw-rules li.ok {
-  color: #16a34a; /* grün */
+  color: #16a34a;
 }
-
 .pw-rules li.error {
   color: #ef4444;
 }
@@ -615,6 +644,7 @@ input:focus {
 .hint {
   margin-top: 4px;
   font-size: 12px;
+  font-weight: 600;
 }
 .hint.error {
   color: #ef4444;
@@ -623,7 +653,7 @@ input:focus {
   color: #16a34a;
 }
 
-/* BUTTON LEISTE */
+/* Buttons */
 .form-footer {
   display: flex;
   justify-content: flex-end;
@@ -631,14 +661,13 @@ input:focus {
   margin-top: 8px;
 }
 
-/* Buttons */
 .btn-primary,
 .btn-secondary,
 .btn-submit {
   padding: 11px 18px;
   border-radius: 10px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   border: none;
   cursor: pointer;
   transition: 0.22s;
@@ -652,61 +681,89 @@ input:focus {
   background: #d1d5db;
 }
 
-.btn-primary {
-  background: #0474c4;
-  color: white;
-}
-.btn-primary:disabled {
-  background: #9ca3af;
-  cursor: not-allowed;
-}
-.btn-primary:hover:enabled {
-  background: #06457f;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
-}
-
+.btn-primary,
 .btn-submit {
-  background: #0474c4;
-  color: white;
+  background: var(--mazari-primary);
+  color: #fff;
 }
+.btn-primary:hover:enabled,
+.btn-submit:hover:enabled {
+  background: var(--mazari-primary-dark);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+  transform: translateY(-1px);
+}
+.btn-primary:disabled,
 .btn-submit:disabled {
   background: #9ca3af;
   cursor: not-allowed;
-}
-.btn-submit:hover:enabled {
-  background: #06457f;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+  transform: none;
 }
 
 /* Error Message */
 .error-msg {
   color: #ef4444;
-  font-weight: 600;
+  font-weight: 700;
   margin-top: 8px;
 }
 
 /* Switch text */
 .switch-text {
-  margin-top: 18px;
+  margin-top: 16px;
   font-size: 14px;
   color: #475569;
-}
-.switch-text a {
-  color: #0474c4;
   font-weight: 600;
 }
+.switch-text a {
+  color: var(--mazari-primary);
+  font-weight: 800;
+}
 
-/* Responsive */
-@media (max-width: 600px) {
-  .auth-card {
-    padding: 26px 20px;
+/* ---------------- MOBILE TUNING ---------------- */
+@media (max-width: 640px) {
+  /* Stepper bleibt HORIZONTAL, ggf. scrollbar */
+  .stepper {
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .stepper::-webkit-scrollbar {
+    display: none;
+  }
+
+  .step {
+    flex: 0 0 auto;
+    min-width: 150px; /* damit "Persönliche Daten" etc. sichtbar sind */
+  }
+  .step-label {
+    font-size: 12px;
+  }
+
+  /* Input rows kneifen nicht */
   .input-row {
     flex-direction: column;
   }
-  .stepper {
+
+  /* Buttons full width nicer */
+  .form-footer {
     flex-direction: column;
-    gap: 6px;
+    align-items: stretch;
+  }
+  .btn-primary,
+  .btn-secondary,
+  .btn-submit {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .step {
+    min-width: 135px;
+  }
+  .step-circle {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
   }
 }
 </style>

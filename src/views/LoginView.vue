@@ -31,39 +31,41 @@ const submit = async () => {
 </script>
 
 <template>
-  <profile-navbar />
-  <div class="auth-wrapper">
-    <div class="auth-card">
-      <h2 class="title">Login</h2>
-      <p class="subtitle">Melde dich an, um fortzufahren</p>
+  <div class="auth-page">
+    <profile-navbar />
+    <div class="auth-wrapper">
+      <div class="auth-card">
+        <h2 class="title">Login</h2>
+        <p class="subtitle">Melde dich an, um fortzufahren</p>
 
-      <form @submit.prevent="submit">
-        <div class="input-group">
-          <label>Email</label>
-          <input
-            v-model="email"
-            type="email"
-            :class="{ 'input-error': email && !email.includes('@') }"
-            required
-          />
-        </div>
+        <form @submit.prevent="submit">
+          <div class="input-group">
+            <label>Email</label>
+            <input
+              v-model="email"
+              type="email"
+              :class="{ 'input-error': email && !email.includes('@') }"
+              required
+            />
+          </div>
 
-        <div class="input-group">
-          <label>Passwort</label>
-          <input v-model="password" type="password" required />
-        </div>
+          <div class="input-group">
+            <label>Passwort</label>
+            <input v-model="password" type="password" required />
+          </div>
 
-        <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
+          <p v-if="errorMessage" class="error-msg">{{ errorMessage }}</p>
 
-        <button class="btn-login" :disabled="isSubmitting">
-          {{ isSubmitting ? 'Wird geladen...' : 'Einloggen' }}
-        </button>
-      </form>
+          <button class="btn-login" :disabled="isSubmitting">
+            {{ isSubmitting ? 'Wird geladen...' : 'Einloggen' }}
+          </button>
+        </form>
 
-      <p class="switch-text">
-        Noch kein Account?
-        <router-link to="/register">Jetzt registrieren</router-link>
-      </p>
+        <p class="switch-text">
+          Noch kein Account?
+          <router-link to="/register">Jetzt registrieren</router-link>
+        </p>
+      </div>
     </div>
   </div>
 </template>
@@ -71,85 +73,99 @@ const submit = async () => {
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-/* FULL SCREEN CENTER */
-.auth-wrapper {
-  height: 100vh;
-  background: #e8f0fb; /* Mazari Light Blue */
+/* ganze Seite als Spalte: Navbar oben, Rest zentriert */
+.auth-page {
+  min-height: 100dvh;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
+  flex-direction: column;
+  background: transparent;
   font-family: 'Inter', sans-serif;
 }
 
-/* CARD */
+/* Wrapper nimmt restliche Höhe und zentriert */
+.auth-wrapper {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  padding-inline: clamp(14px, 4vw, 24px);
+  padding-bottom: clamp(20px, 6vh, 60px);
+}
+
+/* Card */
 .auth-card {
   width: 100%;
-  max-width: 460px;
+  max-width: min(92vw, 480px);
   background: white;
-  padding: 40px 35px;
+  padding: clamp(22px, 4vw, 38px);
   border-radius: 18px;
+  border: 1px solid rgba(6, 69, 127, 0.1);
 
   box-shadow:
-    0 6px 12px rgba(0, 0, 0, 0.04),
-    0 18px 35px rgba(0, 0, 0, 0.08);
+    0 10px 28px rgba(15, 23, 42, 0.1),
+    0 2px 8px rgba(15, 23, 42, 0.06);
 
   animation: fadeIn 0.3s ease-out;
 }
 
 /* Titles */
 .title {
-  font-size: 28px;
+  font-size: clamp(22px, 4vw, 28px);
   text-align: center;
   margin-bottom: 6px;
   font-weight: 800;
-  color: #06457f;
+  color: var(--mazari-text-dark);
 }
 
 .subtitle {
   text-align: center;
-  margin-bottom: 28px;
-  color: #475569;
+  margin-bottom: clamp(16px, 3vw, 26px);
+  color: #667085;
   font-size: 14px;
+  font-weight: 600;
 }
 
-/* Input Groups */
+/* Inputs */
 .input-group {
   display: flex;
   flex-direction: column;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 label {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 700;
   margin-bottom: 6px;
   color: #0f172a;
 }
 
 input {
-  padding: 12px 14px;
-  border: 1.7px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 15px;
+  padding: 10px 12px;
+  border: 1.6px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 16px; /* iOS zoom OFF */
+  background: #f8fafc;
   transition: 0.2s;
 }
 
 input:focus {
-  border-color: #0474c4;
+  border-color: var(--mazari-primary);
+  background: #fff;
   box-shadow: 0 0 0 3px rgba(4, 116, 196, 0.16);
   outline: none;
 }
 
-/* ERROR STATE */
+/* Error */
 .input-error {
   border-color: #ef4444 !important;
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+  background: #fffafa;
 }
 
 .error-msg {
   color: #ef4444;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 10px;
   text-align: center;
 }
@@ -158,18 +174,18 @@ input:focus {
 .btn-login {
   width: 100%;
   padding: 12px;
-  background: #0474c4;
+  background: var(--mazari-primary);
   color: white;
-  font-size: 17px;
+  font-size: 16px;
   border-radius: 10px;
-  font-weight: 700;
+  font-weight: 800;
   border: none;
   cursor: pointer;
   transition: 0.25s;
 }
 
 .btn-login:hover:enabled {
-  background: #06457f;
+  background: var(--mazari-primary-dark);
   transform: translateY(-1px);
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.18);
 }
@@ -180,16 +196,17 @@ input:focus {
   transform: none;
 }
 
-/* Switch Text */
+/* Switch text */
 .switch-text {
-  margin-top: 22px;
+  margin-top: 18px;
   text-align: center;
   color: #475569;
+  font-weight: 600;
 }
 
 .switch-text a {
-  color: #0474c4;
-  font-weight: 700;
+  color: var(--mazari-primary);
+  font-weight: 800;
 }
 
 /* Fade animation */

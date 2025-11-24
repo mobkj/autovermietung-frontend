@@ -1,47 +1,122 @@
 <script setup>
 import { adminService } from '@/api/adminService'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 
 const users = ref([])
+const search = ref('')
+const loading = ref(true)
 
 onMounted(async () => {
-  users.value = await adminService.getAllUsers()
+  try {
+    users.value = await adminService.getAllUsers()
+  } finally {
+    loading.value = false
+  }
 })
+
+const filteredUsers = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  if (!q) return users.value
+
+  return users.value.filter((u) => {
+    const fullName = `${u.firstName ?? ''} ${u.lastName ?? ''}`.toLowerCase()
+    const birthday = String(u.birthday ?? '').toLowerCase()
+    const license = String(u.driverLicenseNumber ?? '').toLowerCase()
+
+    return (
+      String(u.id).toLowerCase().includes(q) ||
+      fullName.includes(q) ||
+      (u.email ?? '').toLowerCase().includes(q) ||
+      (u.role ?? '').toLowerCase().includes(q) ||
+      birthday.includes(q) ||
+      license.includes(q)
+    )
+  })
+})
+
+const clearSearch = () => (search.value = '')
+
+const formatBirthday = (val) => {
+  if (!val) return '-'
+  const d = new Date(val)
+  if (Number.isNaN(d.getTime())) return val
+  return d.toLocaleDateString('de-DE')
+}
 </script>
 
 <template>
   <div class="admin-wrapper">
     <div class="admin-container">
-      <h2 class="title">Meine Kunden</h2>
+      <!-- HEAD -->
+      <div class="head-row">
+        <div>
+          <h2 class="title">Meine Kunden</h2>
+          <p class="subtitle">Übersicht aller registrierten Nutzer.</p>
+        </div>
 
-      <!-- HEADER -->
-      <div class="table-head">
-        <span>ID</span>
-        <span>Name</span>
-        <span>Email</span>
-        <span>Rolle</span>
-        <span>Aktionen</span>
+        <!-- SEARCH -->
+        <div class="search-box">
+          <input
+            v-model="search"
+            type="text"
+            placeholder="Suchen nach Name, Email, ID, Rolle, Geburtstag oder Führerschein…"
+            aria-label="Kunden suchen"
+          />
+          <button v-if="search" class="clear-btn" @click="clearSearch" aria-label="Suche löschen">
+            ×
+          </button>
+        </div>
       </div>
 
-      <!-- ROWS -->
-      <div
-        class="user-row"
-        v-for="u in users"
-        :key="u.id"
-        :class="{ 'row-admin': u.role === 'ADMIN' }"
-      >
-        <span class="id">{{ u.id }}</span>
-        <span>{{ u.firstName }} {{ u.lastName }}</span>
-        <span>{{ u.email }}</span>
+      <!-- META -->
+      <div class="meta-row">
+        <span class="count"> {{ filteredUsers.length }} / {{ users.length }} Kunden </span>
+        <span v-if="loading" class="loading">Lade Daten…</span>
+      </div>
 
-        <span class="role" :class="{ 'role-admin': u.role === 'ADMIN' }">
-          {{ u.role }}
-        </span>
+      <!-- TABLE -->
+      <div class="table-scroll">
+        <table class="users-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Rolle</th>
+              <th>Geburtsdatum</th>
+              <th>Führerschein-Nr.</th>
+              <th>Aktionen</th>
+            </tr>
+          </thead>
 
-        <div class="actions">
-          <button class="btn small disabled">Buchungen</button>
-          <button class="btn small disabled">Rechnungen</button>
-        </div>
+          <tbody>
+            <tr v-if="!loading && filteredUsers.length === 0">
+              <td class="empty" colspan="7">Kein Kunde gefunden.</td>
+            </tr>
+
+            <tr v-for="u in filteredUsers" :key="u.id" :class="{ 'row-admin': u.role === 'ADMIN' }">
+              <td class="id-cell">{{ u.id }}</td>
+              <td>{{ u.firstName }} {{ u.lastName }}</td>
+              <td>{{ u.email }}</td>
+
+              <td>
+                <span class="role-pill" :class="{ 'role-admin': u.role === 'ADMIN' }">
+                  {{ u.role }}
+                </span>
+              </td>
+
+              <td>{{ formatBirthday(u.birthday) }}</td>
+              <td class="license-cell">{{ u.driverLicenseNumber || '-' }}</td>
+
+              <td>
+                <div class="actions">
+                  <button class="btn disabled">Buchungen</button>
+                  <button class="btn disabled">Rechnungen</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -51,144 +126,275 @@ onMounted(async () => {
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 .admin-wrapper {
-  padding: 50px 20px;
+  padding: 50px 16px;
   display: flex;
   justify-content: center;
-  background: #eef4fb;
+  background: transparent;
   font-family: 'Inter', sans-serif;
 }
 
 .admin-container {
   width: 100%;
-  max-width: 1100px;
-  background: white;
-  padding: 35px 40px;
-  border-radius: 20px;
-  border: 2px solid #d8e0ea;
+  max-width: 1150px;
+  background: #ffffff;
+  padding: 30px 28px;
+  border-radius: 18px;
+  border: 1px solid rgba(6, 69, 127, 0.1);
   box-shadow:
-    0 8px 18px rgba(15, 23, 42, 0.06),
-    0 18px 45px rgba(15, 23, 42, 0.08);
+    0 10px 28px rgba(15, 23, 42, 0.1),
+    0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+/* Head */
+.head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
 }
 
 .title {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 800;
-  margin-bottom: 30px;
-  color: #06457f;
+  margin: 0;
+  color: var(--mazari-text-dark);
+  letter-spacing: -0.3px;
 }
 
-/* HEADER */
-.table-head {
-  display: grid;
-  grid-template-columns: 60px 1.2fr 1.5fr 0.8fr 1.3fr; /* exakt gleiche Werte */
-  font-weight: 700;
-  color: #1e293b;
-  padding: 14px 10px;
-  border-bottom: 3px solid #a8c4ec;
+.subtitle {
+  margin: 6px 0 0;
   font-size: 14px;
+  color: #667085;
+  font-weight: 600;
 }
 
-/* ROWS */
-.user-row {
-  display: grid;
-  grid-template-columns: 60px 1.2fr 1.5fr 0.8fr 1.3fr; /* identisch! */
-  padding: 14px 10px;
-  border-bottom: 1px solid #385da6;
-  align-items: center;
+/* Search */
+.search-box {
+  position: relative;
+  min-width: 280px;
+  flex: 0 0 auto;
+}
+
+.search-box input {
+  width: 100%;
+  height: 44px;
+  padding: 0 40px 0 14px;
+  border-radius: 12px;
+  border: 1px solid #e6eaf0;
+  background: #f8fafc;
+  font-weight: 600;
+  outline: none;
   transition: 0.2s ease;
 }
 
-.user-row:hover {
-  background: #f1f5f9;
+.search-box input:focus {
+  border-color: rgba(6, 69, 127, 0.55);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(6, 69, 127, 0.1);
 }
 
-/* ADMIN ROW */
-.row-admin {
-  background: #e4dabc !important;
-}
-
-/* ROLE COLORS */
-.role {
+.clear-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #0f172a;
+  font-size: 18px;
   font-weight: 700;
-  color: #0474c4;
+  cursor: pointer;
 }
 
-.role-admin {
-  color: #d97706 !important;
+/* Meta row */
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 0 12px;
 }
 
-/* ID */
-.id {
+.count {
+  font-size: 12.5px;
+  font-weight: 800;
   color: #475569;
-  font-weight: 600;
+  background: #f1f5f9;
+  padding: 6px 10px;
+  border-radius: 999px;
 }
 
-/* ACTIONS */
+.loading {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 700;
+}
+
+/* Table scroll */
+.table-scroll {
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+/* Table */
+.users-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: separate;
+  border-spacing: 0 8px; /* spacing between rows = card vibe */
+}
+
+.users-table thead th {
+  text-align: left;
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+
+  background: #f8fafc;
+  padding: 12px 12px;
+  border-top: 1px solid #e6eaf0;
+  border-bottom: 1px solid #e6eaf0;
+}
+
+.users-table thead th:first-child {
+  border-left: 1px solid #e6eaf0;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+.users-table thead th:last-child {
+  border-right: 1px solid #e6eaf0;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+/* Body cells */
+.users-table tbody td {
+  background: #fff;
+  padding: 12px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+
+  border-top: 1px solid #eef2f7;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.users-table tbody td:first-child {
+  border-left: 1px solid #eef2f7;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+.users-table tbody td:last-child {
+  border-right: 1px solid #eef2f7;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+/* Hover */
+.users-table tbody tr:hover td {
+  background: #f7faff;
+  border-color: rgba(6, 69, 127, 0.25);
+}
+.users-table tbody tr:hover {
+  transform: translateY(-1px);
+  filter: drop-shadow(0 6px 14px rgba(15, 23, 42, 0.08));
+}
+
+/* Admin highlight */
+.row-admin td {
+  background: #fffaf1;
+}
+.row-admin td:first-child {
+  border-left: 4px solid #f5b544;
+}
+
+/* ID + License */
+.id-cell {
+  color: #64748b;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.license-cell {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Role pill */
+.role-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: rgba(6, 69, 127, 0.08);
+  color: var(--mazari-primary-dark);
+}
+.role-pill.role-admin {
+  background: rgba(245, 181, 68, 0.18);
+  color: #b45309;
+}
+
+/* Actions */
 .actions {
   display: flex;
   gap: 8px;
-  justify-content: flex-start;
-  align-items: center;
+  flex-wrap: wrap;
 }
-
 .btn {
-  padding: 6px 10px;
-  border-radius: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 800;
   border: none;
-  cursor: pointer;
   white-space: nowrap;
-  transition: 0.2s;
 }
-
-.btn.small {
-  padding: 6px 10px;
-}
-
-/* Disabled actions */
 .btn.disabled {
-  background: #d7dfe9;
-  color: #64748b;
+  background: #e9edf3;
+  color: #7a8699;
   cursor: not-allowed;
 }
 
-/* MOBILE OPTIMIERUNG */
-@media (max-width: 820px) {
-  .table-head {
-    grid-template-columns: 50px 1fr 1fr 90px 180px;
-  }
+/* Empty row */
+.empty {
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px dashed #d0d7e2;
+  border-radius: 12px;
+  font-weight: 700;
+  color: #64748b;
+  text-align: center;
+}
 
-  .user-row {
-    grid-template-columns: 50px 1fr 1fr 90px 180px;
+/* Mobile: Table bleibt, nur kompakter + scroll */
+@media (max-width: 720px) {
+  .admin-container {
+    padding: 22px 16px;
   }
-
-  .actions {
-    overflow-x: auto;
-    padding-bottom: 4px;
+  .title {
+    font-size: 22px;
+  }
+  .users-table {
+    min-width: 860px;
+  }
+  .users-table thead th,
+  .users-table tbody td {
+    padding: 10px 10px;
+    font-size: 13px;
   }
 }
 
-@media (max-width: 600px) {
-  .admin-container {
-    padding: 25px 15px;
-  }
-
-  .table-head,
-  .user-row {
-    grid-template-columns: 40px 1fr 1fr;
-    grid-auto-rows: auto;
-    row-gap: 8px;
-  }
-
-  .actions {
-    grid-column: span 3;
-    overflow-x: auto;
-    padding: 6px 0;
-  }
-
-  .role {
-    grid-column: auto;
+@media (max-width: 420px) {
+  .search-box {
+    min-width: 100%;
   }
 }
 </style>

@@ -7,7 +7,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const logout = () => {
   auth.logout()
-  router.push('/') // Redirect zur Startseite
+  router.push('/')
 }
 </script>
 
@@ -18,36 +18,31 @@ const logout = () => {
       <div class="profile-container">
         <h2 class="section-title">Mein Bereich</h2>
 
-        <!-- Menü-Liste -->
         <div class="profile-menu">
-          <!-- ACCOUNT (klickbar) -->
-          <div class="menu-item clickable">
-            <RouterLink to="/account-details" class="menu-link">
-              <span class="menu-title">Account</span>
-              <p class="menu-sub">Persönliche Daten verwalten</p>
-            </RouterLink>
-          </div>
+          <!-- ACCOUNT -->
+          <RouterLink to="/account-details" class="menu-item link-wrapper">
+            <span class="menu-title">Account</span>
+            <p class="menu-sub">Persönliche Daten verwalten</p>
+          </RouterLink>
 
           <div class="trennlinie"></div>
 
-          <div v-if="auth.user?.role === 'ADMIN'">
-            <div class="menu-item disabled">
-              <span class="menu-title"><RouterLink to="/account-user-view">Liste</RouterLink></span>
-              <p class="menu-sub">Alle Kunden im Überblick</p>
-            </div>
+          <!-- LISTE nur für ADMIN -->
+          <RouterLink
+            v-if="auth.user?.role === 'ADMIN'"
+            to="/account-user-view"
+            class="menu-item link-wrapper"
+          >
+            <span class="menu-title">Liste</span>
+            <p class="menu-sub">Alle Kunden im Überblick</p>
+          </RouterLink>
 
-            <div class="trennlinie"></div>
-          </div>
-          <!-- RECHNUNGEN (noch ohne Funktion)
-          <div class="menu-item disabled">
-            <span class="menu-title">Rechnungen</span>
-            <p class="menu-sub">Rechnungen & Zahlungsbelege</p>
-          </div>
+          <div class="trennlinie" v-if="auth.user?.role === 'ADMIN'"></div>
 
-          <div class="trennlinie"></div>-->
-
-          <div class="menu-item disabled" @click="logout">
+          <!-- LOGOUT -->
+          <div class="menu-item link-wrapper logout-item" @click="logout">
             <span class="menu-title">Abmelden</span>
+            <p class="menu-sub">Sicher ausloggen</p>
           </div>
 
           <div class="trennlinie"></div>
@@ -63,103 +58,119 @@ const logout = () => {
 .profile-wrapper {
   display: flex;
   justify-content: center;
-  padding: 60px 20px;
+  background: transparent;
   font-family: 'Inter', sans-serif;
 
-  /* Neuer, smoother Hintergrund */
-  background: linear-gradient(to bottom, #ffffff 0%, #ffffff 40%, #e6eef7 65%, #a8c4ec 100%);
+  /* ✅ dynamische Abstände */
+  padding: clamp(32px, 6vw, 60px) clamp(12px, 3vw, 20px);
 }
 
 .profile-container {
   width: 100%;
-  max-width: 680px;
-  background: white;
-  padding: 40px 35px;
-  border-radius: 18px;
+  max-width: min(92vw, 720px); /* ✅ nie breiter als Screen */
+  background: #ffffff;
+
+  padding: clamp(22px, 4vw, 38px) clamp(18px, 3.5vw, 34px);
+  border-radius: clamp(14px, 2.5vw, 18px);
+  border: 1px solid rgba(6, 69, 127, 0.1);
+
   box-shadow:
-    10px 5px 6px 12px rgba(0, 0, 0, 0.04),
-    10px 5px 20px 40px rgba(0, 0, 0, 0.08);
+    0 10px 28px rgba(15, 23, 42, 0.1),
+    0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
 /* Titel */
 .section-title {
-  font-size: 32px;
-  font-weight: 700;
-  color: #06457f; /* Dunkles Mazari-Blau */
-  margin-bottom: 30px;
-  letter-spacing: -0.5px;
-  width: 100%;
+  font-size: clamp(20px, 4vw, 26px);
+  font-weight: 800;
+  color: var(--mazari-text-dark);
+  margin-bottom: clamp(18px, 3.5vw, 28px);
+  letter-spacing: -0.3px;
   text-align: center;
-  border-left: 5px solid #06457f;
-  border-bottom: 5px solid #06457f;
-  border-radius: 50px;
-  text-align: center;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(6, 69, 127, 0.75);
 }
 
 /* Menü Liste */
 .profile-menu {
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: clamp(12px, 3vw, 18px);
 }
 
-/* Trennlinie aktualisiert mit Palette */
+/* Trennlinie */
 .trennlinie {
-  width: 90%;
-  height: 2px;
+  width: 94%;
+  height: 1px;
   background: linear-gradient(
     90deg,
-    rgba(0, 0, 0, 0) 0%,
-    #0474c4 40%,
-    #06457f 60%,
-    rgba(0, 0, 0, 0) 100%
+    transparent 0%,
+    rgba(6, 69, 127, 0.35) 35%,
+    rgba(6, 69, 127, 0.35) 65%,
+    transparent 100%
   );
-  margin: 20px auto;
-  border-radius: 10px;
+  margin: clamp(6px, 2vw, 8px) auto;
 }
 
 /* Menü Elemente */
 .menu-item {
   background: #ffffff;
-  padding: 22px 24px;
-  border-radius: 16px;
-  border: 2px solid #b1b4b8;
-  transition: 0.25s ease;
-  cursor: default;
-  box-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.04),
-    0 12px 28px rgba(0, 0, 0, 0.12),
-    0 24px 40px rgba(0, 0, 0, 0.08);
-}
+  padding: clamp(14px, 3vw, 18px) clamp(14px, 3vw, 20px);
+  border-radius: clamp(12px, 2.5vw, 14px);
+  border: 1px solid #e6eaf0;
+  transition: 0.22s ease;
+  cursor: pointer;
 
-.menu-link {
-  text-decoration: none;
-  color: inherit;
-  display: block;
+  box-shadow:
+    0 2px 5px rgba(15, 23, 42, 0.05),
+    0 10px 20px rgba(15, 23, 42, 0.06);
 }
 
 .menu-item:hover {
-  transform: translateY(-4px);
-  border-color: #a8c4ec;
+  transform: translateY(-2px);
+  border-color: rgba(6, 69, 127, 0.35);
+  background: #f7faff;
   box-shadow:
-    0 10px 25px rgba(0, 0, 0, 0.08),
-    0 0 25px rgba(148, 163, 184, 0.15);
-  background: #f1f7ff; /* zarter Light-Blue Hover */
+    0 6px 14px rgba(15, 23, 42, 0.08),
+    0 16px 30px rgba(15, 23, 42, 0.08);
 }
 
+.menu-item:hover .menu-title {
+  color: var(--mazari-primary);
+}
+
+.menu-item:focus-visible {
+  outline: 2px solid rgba(6, 69, 127, 0.55);
+  outline-offset: 2px;
+}
+
+.link-wrapper {
+  display: block;
+}
+
+/* Titel / Sub */
 .menu-title {
   display: block;
-  font-size: 22px;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 6px;
-  letter-spacing: -0.3px;
+  font-size: clamp(17px, 3.6vw, 19px);
+  font-weight: 800;
+  color: var(--mazari-text-dark);
+  margin-bottom: 4px;
+  letter-spacing: -0.2px;
 }
 
 .menu-sub {
   margin: 0;
-  font-size: 15px;
-  color: #475569;
-  font-weight: 500;
+  font-size: clamp(12.5px, 2.8vw, 14px);
+  color: #667085;
+  font-weight: 600;
+}
+
+/* Logout */
+.logout-item:hover {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: #fff7f7;
+}
+.logout-item:hover .menu-title {
+  color: #dc2626;
 }
 </style>

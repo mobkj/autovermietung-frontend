@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 240" fill="none">
+  <defs>
+    <!-- Metallic / steel gradient -->
+    <linearGradient id="metallic" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"  stop-color="#0f172a"/>
+      <stop offset="18%" stop-color="#9aa3ad"/>
+      <stop offset="38%" stop-color="#e5e7eb"/>
+      <stop offset="55%" stop-color="#6b7280"/>
+      <stop offset="72%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+
+    <!-- Subtle highlight gradient -->
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.9)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+
+    <!-- Accent line (Mazari blue) -->
+    <linearGradient id="accentBlue" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#032b4f"/>
+      <stop offset="100%" stop-color="#06457f"/>
+    </linearGradient>
+
+    <!-- Soft shadow -->
+    <filter id="softShadow" x="-20%" y="-50%" width="140%" height="200%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000000" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Main metallic word -->
+  <g filter="url(#softShadow)">
+    <text x="35" y="120"
+          font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif"
+          font-size="96"
+          font-weight="800"
+          letter-spacing="6"
+          fill="url(#metallic)">
+      MAZARI
+    </text>
+
+    <!-- Metallic shine overlay (gives subtle bevel feel) -->
+    <rect x="35" y="46" width="620" height="60" fill="url(#shine)" opacity="0.22"/>
+  </g>
+
+  <!-- Subline -->
+  <text x="40" y="170"
+        font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif"
+        font-size="22"
+        font-weight="700"
+        letter-spacing="5"
+        fill="#334155"
+        opacity="0.9">
+    AUTOVERMIETUNG
+  </text>
+
+  <!-- Elegant speed swoosh -->
+  <path d="M40 190 C210 228, 520 228, 720 188"
+        stroke="url(#accentBlue)"
+        stroke-width="6.5"
+        stroke-linecap="round"
+        opacity="0.9"/>
+
+  <!-- Small precision cut -->
+  <path d="M600 186 C645 178, 690 178, 735 186"
+        stroke="#f5b544"
+        stroke-width="3.5"
+        stroke-linecap="round"
+        opacity="0.95"/>
+</svg>

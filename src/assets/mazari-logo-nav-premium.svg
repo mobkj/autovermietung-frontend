@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 180" fill="none">
+  <defs>
+    <!-- Bright metallic for dark backgrounds -->
+    <linearGradient id="metallicLight" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="22%" stop-color="#DDE3EA"/>
+      <stop offset="50%" stop-color="#FFFFFF"/>
+      <stop offset="78%" stop-color="#C9D1DB"/>
+      <stop offset="100%" stop-color="#FFFFFF"/>
+    </linearGradient>
+
+    <!-- Gold accent -->
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#F5B544"/>
+      <stop offset="100%" stop-color="#FFD57C"/>
+    </linearGradient>
+
+    <!-- Soft glow behind text -->
+    <filter id="textGlow" x="-30%" y="-50%" width="160%" height="220%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.35"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#ffffff" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <!-- MAZARI wordmark -->
+  <g filter="url(#textGlow)">
+    <text x="26" y="98"
+      font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif"
+      font-size="86"
+      font-weight="800"
+      letter-spacing="6"
+      fill="url(#metallicLight)">
+      MAZARI
+    </text>
+  </g>
+
+  <!-- subline -->
+  <text x="30" y="132"
+    font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif"
+    font-size="16"
+    font-weight="700"
+    letter-spacing="4"
+    fill="#EAF2FF"
+    opacity="0.95">
+    AUTOVERMIETUNG
+  </text>
+
+  <!-- Cool dynamic swoosh: thick blue base + gold highlight -->
+  <path d="M30 148 C170 176, 390 176, 620 146"
+        stroke="#0B2F52"
+        stroke-width="9"
+        stroke-linecap="round"
+        opacity="0.9"/>
+  <path d="M30 146 C170 172, 390 172, 620 144"
+        stroke="url(#gold)"
+        stroke-width="5.5"
+        stroke-linecap="round"/>
+
+  <!-- Speed cut -->
+  <path d="M520 142 C560 136, 600 136, 640 142"
+        stroke="#FFFFFF"
+        stroke-width="3.2"
+        stroke-linecap="round"
+        opacity="0.9"/>
+</svg>
