@@ -1,65 +1,92 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/AuthStore'
 
-// VIEWS
-import HomeView from '@/views/HomeView.vue'
-import LoginView from '@/views/LoginView.vue'
-import RegisterView from '@/views/RegisterView.vue'
-import ContactView from '@/views/ContactView.vue'
-import FaqView from '@/views/FaqView.vue'
-import ProfileView from '@/views/ProfileView.vue'
-import AccountDetailsView from '@/views/AccountDetailsView.vue'
-import AdminUserView from '@/views/AdminUserView.vue'
-
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // ======================
+    // PUBLIC
+    // ======================
     {
       path: '/',
       name: 'home',
-      component: HomeView,
+      component: () => import('@/views/public/HomeView.vue'),
     },
+    {
+      path: '/contact',
+      name: 'contact',
+      component: () => import('@/views/public/ContactView.vue'),
+    },
+    {
+      path: '/faq',
+      name: 'faq',
+      component: () => import('@/views/public/FaqView.vue'),
+    },
+    {
+      path: '/fahrzeuge/:id',
+      name: 'fahrzeug-details',
+      component: () => import('../views/public/FahrzeugDetailsView.vue'),
+    },
+
+    // ======================
+    // AUTH
+    // ======================
     {
       path: '/login',
       name: 'login',
-      component: LoginView,
+      component: () => import('@/views/auth/LoginView.vue'),
       meta: { guestOnly: true, hideFooter: true },
     },
     {
       path: '/register',
       name: 'register',
-      component: RegisterView,
+      component: () => import('@/views/auth/RegisterView.vue'),
       meta: { guestOnly: true, hideFooter: true },
     },
-    {
-      path: '/contact',
-      name: 'contact',
-      component: ContactView,
-    },
-    {
-      path: '/faq',
-      name: 'FAQ',
-      component: FaqView,
-    },
+
+    // ======================
+    // USER / PROFILE (requiresAuth)
+    // ======================
     {
       path: '/meinprofil',
       name: 'meinprofil',
-      component: ProfileView,
+      component: () => import('@/views/public/ProfileView.vue'),
       meta: { requiresAuth: true },
     },
     {
       path: '/account-details',
-      name: 'AccountDetails',
-      component: AccountDetailsView,
+      name: 'account-details',
+      component: () => import('@/views/admin/AccountDetailsView.vue'),
       meta: { requiresAuth: true },
     },
+
+    // ======================
+    // ADMIN
+    // ======================
     {
       path: '/account-user-view',
-      name: 'AdminUserView',
-      component: AdminUserView,
+      name: 'admin-users',
+      component: () => import('@/views/admin/AdminUserView.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
     },
-    // CATCH-ALL → HOME
+
+    // neue Admin-Route fürs Fahrzeuge anlegen
+    {
+      path: '/admin/fahrzeuge/neu',
+      name: 'admin-fahrzeug-create',
+      component: () => import('@/views/admin/FahrzeugCreateView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/admin/fahrzeuge',
+      name: 'admin-fahrzeuge',
+      component: () => import('../views/admin/AdminFahrzeugeView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+
+    // ======================
+    // CATCH ALL
+    // ======================
     {
       path: '/:catchAll(.*)',
       redirect: '/',
@@ -68,27 +95,27 @@ const router = createRouter({
 })
 
 /* ##################################################################################
-   🔐 Router Guard – Profi Version
+   🔐 Router Guard – stabil & sicher
    - requiresAuth: nur eingeloggt
-   - guestOnly: z. B. Login/Register, wenn eingeloggt → redirect zu /
+   - guestOnly: Login/Register nur für Gäste
    - requiresAdmin: nur Admins
 ##################################################################################### */
 
 router.beforeEach((to, from, next) => {
   const auth = useAuthStore()
 
-  // Benutzer nicht eingeloggt
+  // 1) Route braucht Login
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
     return next('/login')
   }
 
-  // Eingeloggte Nutzer sollen nicht auf Login/Register
+  // 2) Gäste-Routen: wenn eingeloggt -> Home
   if (to.meta.guestOnly && auth.isLoggedIn) {
     return next('/')
   }
 
-  // Adminroute → Admin nötig
-  if (to.meta.requiresAdmin && auth.user.role !== 'ADMIN') {
+  // 3) Admin nötig -> check sicher (user kann null sein)
+  if (to.meta.requiresAdmin && auth.user?.role !== 'ADMIN') {
     return next('/')
   }
 

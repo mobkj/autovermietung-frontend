@@ -39,6 +39,18 @@ const logout = () => {
 
           <div class="trennlinie" v-if="auth.user?.role === 'ADMIN'"></div>
 
+          <!-- FAHRZEUG ANLEGEN nur für ADMIN -->
+          <RouterLink
+            v-if="auth.user?.role === 'ADMIN'"
+            to="/admin/fahrzeuge/neu"
+            class="menu-item link-wrapper"
+          >
+            <span class="menu-title">Fahrzeug anlegen</span>
+            <p class="menu-sub">Neues Fahrzeug zur Flotte hinzufügen</p>
+          </RouterLink>
+
+          <div class="trennlinie" v-if="auth.user?.role === 'ADMIN'"></div>
+
           <!-- LOGOUT -->
           <div class="menu-item link-wrapper logout-item" @click="logout">
             <span class="menu-title">Abmelden</span>

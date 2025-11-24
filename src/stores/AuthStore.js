@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { defineStore } from 'pinia'
-import axios from '@/api/axios'
+import api from '@/api/axios'
 import router from '@/router'
 
 export const useAuthStore = defineStore('auth', {
@@ -17,7 +17,7 @@ export const useAuthStore = defineStore('auth', {
     // ---------- LOGIN ----------
     async login(email, password) {
       try {
-        const res = await axios.post('/auth/login', { email, password })
+        const res = await api.post('/auth/login', { email, password })
 
         this.token = res.data.token
 
@@ -52,7 +52,7 @@ export const useAuthStore = defineStore('auth', {
     // ---------- REGISTER ----------
     async register(payload) {
       try {
-        const res = await axios.post('/auth/register', payload) // Keys passen 1:1 zum Backend
+        const res = await api.post('/auth/register', payload) // Keys passen 1:1 zum Backend
 
         this.token = res.data.token
         this.user = res.data

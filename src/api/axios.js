@@ -2,7 +2,7 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/AuthStore'
 
 const api = axios.create({
-  baseURL: 'http://localhost:8080', // dein Spring Boot Backend
+  baseURL: import.meta.env.VITE_API_URL || '', // dein Spring Boot Backend
 })
 
 // sendet automatisch Token

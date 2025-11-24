@@ -1,6 +1,25 @@
 <script setup>
 import NavBar from '@/components/NavBar.vue'
 import mazariFleetImg from '@/assets/mazariFleetImg.png'
+
+import { onMounted, ref } from 'vue'
+import { vehicleService } from '@/api/vehicleService'
+
+const vehicles = ref([])
+const loadingVehicles = ref(true)
+const vehicleError = ref('')
+
+onMounted(async () => {
+  try {
+    loadingVehicles.value = true
+    vehicles.value = await vehicleService.getAllActiveVehicles()
+  } catch (e) {
+    vehicleError.value =
+      e?.response?.data?.message || e?.message || 'Fahrzeuge konnten nicht geladen werden.'
+  } finally {
+    loadingVehicles.value = false
+  }
+})
 </script>
 
 <template>
@@ -91,31 +110,50 @@ import mazariFleetImg from '@/assets/mazariFleetImg.png'
       </div>
 
       <div class="vehicle-grid">
-        <div class="vehicle-card">
-          <img src="https://placehold.co/520x320?text=City+Compact" alt="City Compact" />
-          <div class="vehicle-body">
-            <h3>City Compact</h3>
-            <p>Perfekt für Stadt & Kurzstrecke – sparsam und wendig.</p>
-            <button class="vehicle-btn" disabled>Details bald verfügbar</button>
+        <!-- Loading Skeleton (optisch neutral) -->
+        <template v-if="loadingVehicles">
+          <div class="vehicle-card" v-for="i in 3" :key="i">
+            <img src="https://placehold.co/520x320?text=Lade..." alt="Loading" />
+            <div class="vehicle-body">
+              <h3>Lade Fahrzeug...</h3>
+              <p>Bitte einen Moment.</p>
+              <button class="vehicle-btn">Details & Buchen</button>
+            </div>
           </div>
-        </div>
+        </template>
 
-        <div class="vehicle-card">
-          <img src="https://placehold.co/520x320?text=Business+Sedan" alt="Business Sedan" />
-          <div class="vehicle-body">
-            <h3>Business Sedan</h3>
-            <p>Komfort & Stil für längere Fahrten und Business-Trips.</p>
-            <button class="vehicle-btn" disabled>Details bald verfügbar</button>
-          </div>
-        </div>
+        <!-- Error -->
+        <p v-else-if="vehicleError" class="vehicles-error">
+          {{ vehicleError }}
+        </p>
 
-        <div class="vehicle-card">
-          <img src="https://placehold.co/520x320?text=Premium+SUV" alt="Premium SUV" />
-          <div class="vehicle-body">
-            <h3>Premium SUV</h3>
-            <p>Viel Platz, hohe Sicherheit – für Familie & Abenteuer.</p>
-            <button class="vehicle-btn" disabled>Details bald verfügbar</button>
-          </div>
+        <!-- Fahrzeuge vorhanden -->
+        <template v-else-if="vehicles.length">
+          <RouterLink
+            v-for="v in vehicles"
+            :key="v.id"
+            :to="`/fahrzeuge/${v.id}`"
+            class="vehicle-link"
+          >
+            <div class="vehicle-card">
+              <img
+                :src="v.bildUrl || 'https://placehold.co/520x320?text=Mazari'"
+                :alt="`${v.marke} ${v.modell}`"
+              />
+
+              <div class="vehicle-body">
+                <h3>{{ v.marke }} {{ v.modell }}</h3>
+                <p>{{ v.serie }} · {{ v.ps }} PS · {{ v.getriebe }} · {{ v.kraftstoff }}</p>
+
+                <button class="vehicle-btn">Details & Buchen</button>
+              </div>
+            </div>
+          </RouterLink>
+        </template>
+
+        <!-- Keine Fahrzeuge -->
+        <div v-else class="vehicles-empty">
+          Noch keine Fahrzeuge online – Flotte wird gerade befüllt.
         </div>
       </div>
 
@@ -453,8 +491,46 @@ import mazariFleetImg from '@/assets/mazariFleetImg.png'
   border: none;
   font-weight: 800;
   background: #eef2f7;
-  color: #7a8699;
-  cursor: not-allowed;
+  color: var(--mazari-primary);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.vehicle-btn-underline::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 6px;
+  height: 2px;
+  background: var(--mazari-primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
+}
+
+.vehicle-btn-underline:hover::after {
+  transform: scaleX(1);
+}
+
+.vehicle-link {
+  display: block;
+}
+
+.vehicles-error {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-weight: 800;
+  color: #ef4444;
+}
+
+.vehicles-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-weight: 700;
+  color: #475569;
+  padding: 12px;
 }
 
 /* MOBILE */
@@ -490,6 +566,17 @@ import mazariFleetImg from '@/assets/mazariFleetImg.png'
   .cta {
     width: 100%;
   }
+}
+
+.vehicle-link {
+  display: block;
+  color: inherit;
+}
+
+.vehicle-card-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
 }
 
 @media (max-width: 520px) {
