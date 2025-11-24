@@ -18,12 +18,25 @@ const price = computed(() => {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 })
 
-const BACKEND = 'http://localhost:8080'
-
 const imgSrc = computed(() => {
   const url = props.vehicle.bildUrl
   if (!url) return 'https://placehold.co/520x320?text=Mazari'
-  return url.startsWith('http') ? url : `${BACKEND}${url}`
+
+  // wenn Backend relative URL liefert -> direkt benutzen (Proxy macht Rest)
+  if (url.startsWith('/uploads')) return url
+
+  // falls doch absolute URL gespeichert ist -> Origin wegwerfen
+  if (url.startsWith('http')) {
+    try {
+      const u = new URL(url)
+      return u.pathname + u.search // z.B. "/uploads/fahrzeuge/xyz.jpg"
+    } catch {
+      return url
+    }
+  }
+
+  // fallback für alte Fälle
+  return url
 })
 </script>
 

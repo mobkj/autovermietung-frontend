@@ -1,79 +1,211 @@
 <script setup>
 import NavBar from '@/components/NavBar.vue'
 import VehicleCard from '@/components/vehicles/VehicleCard.vue'
-import { onMounted, ref } from 'vue'
-import { vehicleService } from '@/api/vehicleService'
+import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue'
+import vehicleService from '@/api/vehicleService'
 
+// =====================
+// STATE
+// =====================
 const vehicles = ref([])
 const loading = ref(true)
 const error = ref('')
 
-// Modal State
 const modalOpen = ref(false)
-const selected = ref(null)
+const saving = ref(false)
+const modalError = ref('')
 
-// Edit Form
-const editForm = ref({})
+// Edit-Form (defaults)
+const emptyForm = () => ({
+  id: null,
+  marke: '',
+  modell: '',
+  serie: '',
+  baujahr: null,
+  ps: null,
+  getriebe: '',
+  kraftstoff: '',
+  sitze: null,
+  tueren: null,
+  farbe: '',
+  nettoPreisProTag: null,
+  freiKmProTag: null,
+  kaution: null,
+  status: 'AKTIV',
+  bildUrl: '',
+})
 
-const loadVehicles = async () => {
+const editForm = ref(emptyForm())
+
+// Bild state
+const newImageFile = ref(null)
+
+// Backend Base (prod-ready via .env)
+const BACKEND = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+
+// =====================
+// IMAGE PREVIEW (mit Cleanup)
+// =====================
+const previewUrl = ref(null)
+
+watch(newImageFile, (file) => {
+  // alte Preview aufräumen -> kein Memory Leak
+  if (previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value)
+    previewUrl.value = null
+  }
+  if (file) previewUrl.value = URL.createObjectURL(file)
+})
+
+onBeforeUnmount(() => {
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+})
+
+// finaler Preview-Src fürs Modal
+const imagePreview = computed(() => {
+  if (previewUrl.value) return previewUrl.value
+
+  const url = editForm.value.bildUrl
+  if (!url) return 'https://placehold.co/520x320?text=Mazari'
+  return url.startsWith('http') ? url : `${BACKEND}${url}`
+})
+
+// =====================
+// LOAD VEHICLES (ADMIN)
+// Race-safe (falls Komponente schnell wechselt)
+// =====================
+let loadSeq = 0
+
+async function loadVehicles() {
+  const seq = ++loadSeq
   try {
     loading.value = true
-    vehicles.value = await vehicleService.getAllVehiclesAdmin()
+    error.value = ''
+    const data = await vehicleService.getAllVehiclesAdmin()
+    if (seq !== loadSeq) return // ignore old response
+
+    vehicles.value = Array.isArray(data) ? data : []
   } catch (e) {
-    error.value = e.message || 'Fehler beim Laden'
+    if (seq !== loadSeq) return
+    error.value =
+      e?.response?.data?.message || e?.message || 'Fahrzeuge konnten nicht geladen werden.'
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 
 onMounted(loadVehicles)
 
-const openEdit = (vehicle) => {
-  selected.value = vehicle
-  editForm.value = {
-    marke: vehicle.marke || '',
-    modell: vehicle.modell || '',
-    serie: vehicle.serie || '',
-    baujahr: vehicle.baujahr || null,
-    ps: vehicle.ps || null,
-    getriebe: vehicle.getriebe || '',
-    kraftstoff: vehicle.kraftstoff || '',
-    sitze: vehicle.sitze || null,
-    tueren: vehicle.tueren || null,
-    farbe: vehicle.farbe || '',
-    nettoPreisProTag: vehicle.nettoPreisProTag,
-    freiKmProTag: vehicle.freiKmProTag,
-    kaution: vehicle.kaution,
-    status: vehicle.status || 'AKTIV',
-  }
+// =====================
+// MODAL HANDLING
+// =====================
+function openEdit(vehicle) {
+  modalError.value = ''
   modalOpen.value = true
+  newImageFile.value = null
+
+  // nur bekannte Felder übernehmen -> stabiler
+  editForm.value = {
+    ...emptyForm(),
+    id: vehicle.id ?? null,
+    marke: vehicle.marke ?? '',
+    modell: vehicle.modell ?? '',
+    serie: vehicle.serie ?? '',
+    baujahr: vehicle.baujahr ?? null,
+    ps: vehicle.ps ?? null,
+    getriebe: vehicle.getriebe ?? '',
+    kraftstoff: vehicle.kraftstoff ?? '',
+    sitze: vehicle.sitze ?? null,
+    tueren: vehicle.tueren ?? null,
+    farbe: vehicle.farbe ?? '',
+    nettoPreisProTag: vehicle.nettoPreisProTag ?? null,
+    freiKmProTag: vehicle.freiKmProTag ?? null,
+    kaution: vehicle.kaution ?? null,
+    status: vehicle.status ?? 'AKTIV',
+    bildUrl: vehicle.bildUrl ?? '',
+  }
 }
 
-const closeEdit = () => {
+function closeEdit() {
   modalOpen.value = false
-  selected.value = null
+  modalError.value = ''
+  newImageFile.value = null
+  editForm.value = emptyForm()
 }
 
-const saveEdit = async () => {
+// File Input Change
+function onFileChange(e) {
+  newImageFile.value = e.target.files?.[0] || null
+}
+
+// =====================
+// Payload normalisieren (Nummern sauber)
+// =====================
+function normalizePayload(form) {
+  const payload = { ...form }
+
+  // id nicht mitsenden (Backend braucht es nicht im Body)
+  delete payload.id
+
+  const intFields = ['baujahr', 'ps', 'sitze', 'tueren', 'freiKmProTag']
+  const floatFields = ['nettoPreisProTag', 'kaution']
+
+  intFields.forEach((k) => {
+    if (payload[k] === '' || payload[k] === undefined) payload[k] = null
+    if (payload[k] !== null) payload[k] = Number.parseInt(payload[k], 10)
+  })
+
+  floatFields.forEach((k) => {
+    if (payload[k] === '' || payload[k] === undefined) payload[k] = null
+    if (payload[k] !== null) payload[k] = Number(payload[k])
+  })
+
+  return payload
+}
+
+// =====================
+// SAVE EDIT
+// =====================
+async function saveEdit() {
+  if (saving.value) return // doppelklick-sicher
+  modalError.value = ''
+
   try {
-    loading.value = true
-    await vehicleService.updateVehicle(selected.value.id, {
-      ...editForm.value,
-      nettoPreisProTag: Number(editForm.value.nettoPreisProTag),
-      freiKmProTag: Number(editForm.value.freiKmProTag),
-      kaution: editForm.value.kaution !== '' ? Number(editForm.value.kaution) : null,
-      baujahr: editForm.value.baujahr ? Number(editForm.value.baujahr) : null,
-      ps: editForm.value.ps ? Number(editForm.value.ps) : null,
-      sitze: editForm.value.sitze ? Number(editForm.value.sitze) : null,
-      tueren: editForm.value.tueren ? Number(editForm.value.tueren) : null,
-    })
+    saving.value = true
+
+    const id = editForm.value.id
+    if (!id) {
+      modalError.value = 'Ungültige Fahrzeug-ID.'
+      return
+    }
+
+    // 1) Daten updaten
+    const updatedVehicle = await vehicleService.updateVehicle(id, normalizePayload(editForm.value))
+
+    // Fallback falls Backend nix zurückgibt
+    let finalVehicle = updatedVehicle || { ...editForm.value }
+
+    // 2) Optional Bild hochladen
+    if (newImageFile.value) {
+      const withImage = await vehicleService.uploadVehicleImage(id, newImageFile.value)
+      finalVehicle = withImage || finalVehicle
+    }
+
+    // 3) Liste lokal patchen (performant)
+    const idx = vehicles.value.findIndex((v) => v.id === finalVehicle.id)
+    if (idx !== -1) {
+      vehicles.value.splice(idx, 1, finalVehicle)
+    } else {
+      vehicles.value.unshift(finalVehicle)
+    }
 
     closeEdit()
-    await loadVehicles()
   } catch (e) {
-    alert(e?.response?.data?.message || e.message || 'Update fehlgeschlagen')
+    console.error('Update fehlgeschlagen:', e)
+    modalError.value =
+      e?.response?.data?.message || e?.message || 'Update fehlgeschlagen. Bitte erneut versuchen.'
   } finally {
-    loading.value = false
+    saving.value = false
   }
 }
 </script>
@@ -112,6 +244,21 @@ const saveEdit = async () => {
           <h3 class="modal-title">Fahrzeug bearbeiten</h3>
 
           <div class="modal-grid">
+            <!-- BILD -->
+            <div class="field field-full">
+              <label>Bild</label>
+
+              <div class="image-row">
+                <img class="preview" :src="imagePreview" alt="Vorschau" />
+
+                <div class="image-actions">
+                  <input type="file" accept="image/*" @change="onFileChange" />
+
+                  <small class="hint"> Wenn du nichts auswählst, bleibt das aktuelle Bild. </small>
+                </div>
+              </div>
+            </div>
+
             <div class="field">
               <label>Marke</label>
               <input v-model="editForm.marke" />
@@ -284,6 +431,56 @@ const saveEdit = async () => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
+
+.field-full {
+  grid-column: 1 / -1;
+}
+
+.image-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid #e6eaf0;
+  background: #f8fafc;
+}
+
+.preview {
+  width: 220px;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid #e6eaf0;
+  background: white;
+}
+
+.image-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.hint {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 520px) {
+  .image-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .preview {
+    width: 100%;
+    height: 180px;
+  }
+}
+
 @media (max-width: 800px) {
   .modal-grid {
     grid-template-columns: repeat(2, 1fr);

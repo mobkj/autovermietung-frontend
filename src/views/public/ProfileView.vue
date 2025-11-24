@@ -33,8 +33,8 @@ const logout = () => {
             to="/account-user-view"
             class="menu-item link-wrapper"
           >
-            <span class="menu-title">Liste</span>
-            <p class="menu-sub">Alle Kunden im Überblick</p>
+            <span class="menu-title">Kundenliste</span>
+            <p class="menu-sub">Alle Kunden inkl. Buchungen & Rechnungen im Überblick</p>
           </RouterLink>
 
           <div class="trennlinie" v-if="auth.user?.role === 'ADMIN'"></div>
@@ -47,6 +47,17 @@ const logout = () => {
           >
             <span class="menu-title">Fahrzeug anlegen</span>
             <p class="menu-sub">Neues Fahrzeug zur Flotte hinzufügen</p>
+          </RouterLink>
+
+          <div class="trennlinie" v-if="auth.user?.role === 'ADMIN'"></div>
+
+          <RouterLink
+            v-if="auth.user?.role === 'ADMIN'"
+            to="/admin/fahrzeuge"
+            class="menu-item link-wrapper"
+          >
+            <span class="menu-title">Erstellte Fahrzeuge Bearbeiten</span>
+            <p class="menu-sub">Bearbeite oder Reserviere Fahrzeuge selbst</p>
           </RouterLink>
 
           <div class="trennlinie" v-if="auth.user?.role === 'ADMIN'"></div>

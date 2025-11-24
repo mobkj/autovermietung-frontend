@@ -16,6 +16,12 @@ export default defineConfig({
     },
     host: true,
     port: 5173,
+    allowedHosts: [
+      'ngan-unsettled-uninceptively.ngrok-free.dev',
+      'all', // dein aktueller ngrok-host
+      // optional: falls sich der host ständig ändert, nimm stattdessen:
+      // '.ngrok-free.dev',
+    ],
   },
 
   resolve: {

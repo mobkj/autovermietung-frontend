@@ -106,7 +106,10 @@ onMounted(async () => {
     <section class="vehicles">
       <div class="vehicles-head">
         <h2 class="section-headline">Unsere Fahrzeuge</h2>
-        <p class="section-sub">Aktuell verfügbar: drei Bestseller – weitere Modelle folgen.</p>
+        <p class="section-sub">
+          Aktuell verfügbar: {{ vehicles.length }} <span v-if="vehicles.length < 2">Fahrzeug</span>
+          <span v-else>Fahrzeuge</span> – weitere Modelle folgen.
+        </p>
       </div>
 
       <div class="vehicle-grid">
