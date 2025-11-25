@@ -4,6 +4,7 @@ import mazariFleetImg from '@/assets/mazariFleetImg.png'
 
 import { onMounted, ref } from 'vue'
 import { vehicleService } from '@/api/vehicleService'
+import VehicleCard from '@/components/vehicles/VehicleCard.vue'
 
 const vehicles = ref([])
 const loadingVehicles = ref(true)
@@ -28,6 +29,13 @@ onMounted(async () => {
   <main class="home-wrapper">
     <!-- HERO / INTRO -->
     <section class="hero">
+      <div class="hero-visual">
+        <div class="visual-card">
+          <div class="visual-glow"></div>
+          <img :src="mazariFleetImg" alt="Mazari Fahrzeuge" />
+          <div class="visual-caption">Deine Fahrt beginnt hier.</div>
+        </div>
+      </div>
       <div class="hero-content">
         <div class="hero-badge">Premium Autovermietung in deiner Nähe</div>
 
@@ -58,14 +66,6 @@ onMounted(async () => {
             <div class="stat-number">Top gepflegt</div>
             <div class="stat-label">Premium-Fahrzeuge</div>
           </div>
-        </div>
-      </div>
-
-      <div class="hero-visual">
-        <div class="visual-card">
-          <div class="visual-glow"></div>
-          <img :src="mazariFleetImg" alt="Mazari Fahrzeuge" />
-          <div class="visual-caption">Deine Fahrt beginnt hier.</div>
         </div>
       </div>
     </section>
@@ -107,20 +107,21 @@ onMounted(async () => {
       <div class="vehicles-head">
         <h2 class="section-headline">Unsere Fahrzeuge</h2>
         <p class="section-sub">
-          Aktuell verfügbar: {{ vehicles.length }} <span v-if="vehicles.length < 2">Fahrzeug</span>
+          Aktuell verfügbar: {{ vehicles.length }}
+          <span v-if="vehicles.length === 1">Fahrzeug</span>
           <span v-else>Fahrzeuge</span> – weitere Modelle folgen.
         </p>
       </div>
 
       <div class="vehicle-grid">
-        <!-- Loading Skeleton (optisch neutral) -->
+        <!-- Loading Skeleton (immer z.B. 3 Platzhalter) -->
         <template v-if="loadingVehicles">
-          <div class="vehicle-card" v-for="i in 3" :key="i">
+          <div class="vehicle-card" v-for="i in vehicles.length" :key="i">
             <img src="https://placehold.co/520x320?text=Lade..." alt="Loading" />
             <div class="vehicle-body">
               <h3>Lade Fahrzeug...</h3>
               <p>Bitte einen Moment.</p>
-              <button class="vehicle-btn">Details & Buchen</button>
+              <button class="vehicle-btn">Details &amp; Buchen</button>
             </div>
           </div>
         </template>
@@ -138,19 +139,7 @@ onMounted(async () => {
             :to="`/fahrzeuge/${v.id}`"
             class="vehicle-link"
           >
-            <div class="vehicle-card">
-              <img
-                :src="v.bildUrl || 'https://placehold.co/520x320?text=Mazari'"
-                :alt="`${v.marke} ${v.modell}`"
-              />
-
-              <div class="vehicle-body">
-                <h3>{{ v.marke }} {{ v.modell }}</h3>
-                <p>{{ v.serie }} · {{ v.ps }} PS · {{ v.getriebe }} · {{ v.kraftstoff }}</p>
-
-                <button class="vehicle-btn">Details & Buchen</button>
-              </div>
-            </div>
+            <VehicleCard :vehicle="v" />
           </RouterLink>
         </template>
 
@@ -159,9 +148,6 @@ onMounted(async () => {
           Noch keine Fahrzeuge online – Flotte wird gerade befüllt.
         </div>
       </div>
-
-      <!-- Platzhalter für spätere Fahrzeugliste -->
-      <!-- <div class="vehicles-list">...</div> -->
     </section>
   </main>
 </template>

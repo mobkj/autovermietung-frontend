@@ -22,8 +22,10 @@ const form = ref({
   kaution: '',
 })
 
-const imageFile = ref(null)
-const imagePreview = ref('')
+// NEU: mehrere Bilder, einzeln ausgewählt
+const imageFiles = ref([]) // Array<File>
+const imagePreviews = ref([]) // Array<string>
+const fileInputRef = ref(null) // verstecktes Input-Element
 
 const loading = ref(false)
 const error = ref('')
@@ -37,11 +39,41 @@ const requiredOk = computed(
     form.value.freiKmProTag !== '',
 )
 
-const onPickImage = (e) => {
+const triggerFileSelect = () => {
+  if (fileInputRef.value) {
+    fileInputRef.value.click()
+  }
+}
+
+const onAddImage = (e) => {
   const file = e.target.files?.[0]
   if (!file) return
-  imageFile.value = file
-  imagePreview.value = URL.createObjectURL(file)
+
+  imageFiles.value.push(file)
+  imagePreviews.value.push(URL.createObjectURL(file))
+
+  // wichtig, sonst kann man dasselbe File direkt nochmal nicht wählen
+  e.target.value = ''
+}
+
+const resetForm = () => {
+  form.value = {
+    marke: '',
+    modell: '',
+    serie: '',
+    baujahr: null,
+    ps: null,
+    getriebe: '',
+    kraftstoff: '',
+    sitze: null,
+    tueren: null,
+    farbe: '',
+    nettoPreisProTag: '',
+    freiKmProTag: '',
+    kaution: '',
+  }
+  imageFiles.value = []
+  imagePreviews.value = []
 }
 
 const submit = async () => {
@@ -69,31 +101,15 @@ const submit = async () => {
 
     const created = await vehicleService.createVehicle(dto)
 
-    // 2) Optional Bild hochladen
-    if (imageFile.value) {
-      await vehicleService.uploadVehicleImage(created.id, imageFile.value)
+    // 2) Optional Bilder hochladen (in Reihenfolge: Bild 1 = Vorschau)
+    if (imageFiles.value.length > 0) {
+      await vehicleService.uploadVehicleImages(created.id, imageFiles.value)
     }
 
     success.value = 'Fahrzeug erfolgreich angelegt ✅'
     router.push('/admin/fahrzeuge')
-    // Reset
-    form.value = {
-      marke: '',
-      modell: '',
-      serie: '',
-      baujahr: null,
-      ps: null,
-      getriebe: '',
-      kraftstoff: '',
-      sitze: null,
-      tueren: null,
-      farbe: '',
-      nettoPreisProTag: '',
-      freiKmProTag: '',
-      kaution: '',
-    }
-    imageFile.value = null
-    imagePreview.value = ''
+
+    resetForm()
   } catch (e) {
     error.value = e?.response?.data?.message || e?.message || 'Fehler beim Anlegen des Fahrzeugs.'
   } finally {
@@ -115,15 +131,29 @@ const submit = async () => {
 
         <form class="form" @submit.prevent="submit">
           <!-- Bild -->
+          <!-- Bild -->
           <div class="image-block">
-            <div class="image-preview" v-if="imagePreview">
-              <img :src="imagePreview" alt="Preview" />
+            <!-- Thumbnails -->
+            <div v-if="imagePreviews.length" class="thumb-grid">
+              <div v-for="(src, idx) in imagePreviews" :key="idx" class="thumb">
+                <span class="thumb-label">
+                  Bild {{ idx + 1 }}
+                  <span v-if="idx === 0"> (Vorschau)</span>
+                </span>
+                <img :src="src" :alt="`Bild ${idx + 1}`" />
+              </div>
             </div>
-            <label class="image-btn">
-              Bild auswählen (1920×1080 empfohlen)
-              <input type="file" accept="image/*" @change="onPickImage" hidden />
-            </label>
-            <p class="hint">Optional – ohne Bild wird ein Platzhalter genutzt.</p>
+
+            <!-- Button: Bild 1 auswählen, danach Bild 2, 3, ... -->
+            <button type="button" class="image-btn" @click="triggerFileSelect">
+              Bild {{ imageFiles.length + 1 }} auswählen
+            </button>
+            <input ref="fileInputRef" type="file" accept="image/*" @change="onAddImage" hidden />
+
+            <p class="hint">
+              Optional – ohne Bilder wird ein Platzhalter genutzt. Erstes Bild wird als
+              Vorschau-Bild verwendet.
+            </p>
           </div>
 
           <!-- Basic -->
@@ -235,6 +265,38 @@ const submit = async () => {
   color: var(--mazari-text-dark);
   margin: 0;
 }
+
+.thumb-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.thumb {
+  width: 110px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+}
+
+.thumb-label {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 6px;
+  color: #0f172a;
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.thumb img {
+  width: 100%;
+  height: 70px;
+  object-fit: cover;
+}
+
 .sub {
   margin-top: 6px;
   color: #667085;

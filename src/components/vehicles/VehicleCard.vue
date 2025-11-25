@@ -6,7 +6,7 @@ const props = defineProps({
   isAdmin: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['edit'])
+const emit = defineEmits(['edit', 'details'])
 
 const title = computed(() => {
   const s = props.vehicle.serie ? ` ${props.vehicle.serie}` : ''
@@ -18,32 +18,30 @@ const price = computed(() => {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 })
 
-const imgSrc = computed(() => {
-  const url = props.vehicle.bildUrl
-  if (!url) return 'https://placehold.co/520x320?text=Mazari'
+const placeholderImg = 'https://placehold.co/520x320?text=Mazari'
 
-  // wenn Backend relative URL liefert -> direkt benutzen (Proxy macht Rest)
-  if (url.startsWith('/uploads')) return url
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
-  // falls doch absolute URL gespeichert ist -> Origin wegwerfen
-  if (url.startsWith('http')) {
-    try {
-      const u = new URL(url)
-      return u.pathname + u.search // z.B. "/uploads/fahrzeuge/xyz.jpg"
-    } catch {
-      return url
-    }
-  }
+const previewImgSrc = computed(() => {
+  const bilder = props.vehicle.bilder || []
+  if (!bilder.length) return placeholderImg
 
-  // fallback für alte Fälle
-  return url
+  const cover = bilder.find((b) => b.vorschau)
+  const path = cover?.url || bilder[0]?.url
+
+  if (!path) return placeholderImg
+  if (path.startsWith('http')) return path
+
+  // Hier wird aus "/fahrzeug1/bild1_1.png"
+  // -> "https://dein-ngrok.../fahrzeug1/bild1_1.png"
+  return API_BASE_URL + path
 })
 </script>
 
 <template>
   <article class="vehicle-card">
     <div class="vehicle-img-wrap">
-      <img :src="imgSrc" :alt="title" class="vehicle-img" />
+      <img :src="previewImgSrc" :alt="title" class="vehicle-img" />
       <div class="price-badge">{{ price }} / Tag</div>
     </div>
 
@@ -57,9 +55,19 @@ const imgSrc = computed(() => {
       <p class="vehicle-desc">Premium-Fahrzeug – gepflegt, zuverlässig und sofort startklar.</p>
 
       <div class="vehicle-actions">
-        <button class="vehicle-btn" disabled v-if="!isAdmin">Details bald verfügbar</button>
+        <!-- Kunde -->
+        <button
+          v-if="!isAdmin"
+          class="vehicle-btn vehicle-btn-underline"
+          @click.stop="emit('details', vehicle)"
+        >
+          Details &amp; Buchen
+        </button>
 
-        <button class="vehicle-btn admin" v-else @click="emit('edit', vehicle)">Bearbeiten</button>
+        <!-- Admin -->
+        <button v-else class="vehicle-btn admin" @click.stop="emit('edit', vehicle)">
+          Bearbeiten
+        </button>
       </div>
     </div>
   </article>
@@ -139,16 +147,60 @@ const imgSrc = computed(() => {
 }
 
 /* Button */
+.vehicle-actions {
+  display: flex;
+  justify-content: center; /* schön mittig */
+}
+
+/* Button */
 .vehicle-btn {
-  width: 100%;
-  padding: 10px 12px;
+  margin-top: 6px;
+  height: 40px;
+  padding: 0 18px;
   border-radius: 10px;
   border: none;
   font-weight: 800;
-  font-size: 14px;
-  background: #e5e7eb;
-  color: #64748b;
-  cursor: not-allowed;
+  background: #eef2f7;
+  color: var(--mazari-primary);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.vehicle-btn:hover {
+  background: #dfe5f2;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+}
+
+/* Underline nur für Public-Button */
+.vehicle-btn-underline::after {
+  content: '';
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 6px;
+  height: 2px;
+  background: var(--mazari-primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
+}
+
+.vehicle-btn-underline:hover::after {
+  transform: scaleX(1);
+}
+
+.vehicle-link {
+  display: block;
 }
 
 .vehicle-actions {

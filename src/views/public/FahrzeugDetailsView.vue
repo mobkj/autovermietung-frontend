@@ -11,6 +11,10 @@ const vehicle = ref(null)
 const loading = ref(true)
 const error = ref('')
 
+const currentIndex = ref(0)
+const placeholderImg = 'https://placehold.co/1200x700?text=Mazari'
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
+
 const priceFormatted = computed(() => {
   if (!vehicle.value?.nettoPreisProTag) return ''
   return new Intl.NumberFormat('de-DE', {
@@ -20,10 +24,49 @@ const priceFormatted = computed(() => {
   }).format(vehicle.value.nettoPreisProTag)
 })
 
+const hasImages = computed(() => !!vehicle.value?.bilder?.length)
+
+const currentImageUrl = computed(() => {
+  const bilder = vehicle.value?.bilder || []
+  if (!bilder.length) return placeholderImg
+
+  const path = bilder[currentIndex.value]?.url
+  if (!path) return placeholderImg
+  if (path.startsWith('http')) return path
+
+  return API_BASE_URL + path
+})
+
+const currentImageAlt = computed(() => {
+  if (!vehicle.value) return 'Fahrzeugbild'
+  return `${vehicle.value.marke} ${vehicle.value.modell}`
+})
+
+const nextImage = () => {
+  if (!hasImages.value) return
+  const bilder = vehicle.value.bilder
+  currentIndex.value = (currentIndex.value + 1) % bilder.length
+}
+
+const prevImage = () => {
+  if (!hasImages.value) return
+  const bilder = vehicle.value.bilder
+  currentIndex.value = (currentIndex.value - 1 + bilder.length) % bilder.length
+}
+
 onMounted(async () => {
   try {
     loading.value = true
-    vehicle.value = await vehicleService.getVehicleById(id.value)
+    const data = await vehicleService.getVehicleById(id.value)
+    vehicle.value = data
+
+    // Startbild: Vorschaubild, sonst erstes
+    if (vehicle.value?.bilder?.length) {
+      const idx = vehicle.value.bilder.findIndex((b) => b.vorschau)
+      currentIndex.value = idx >= 0 ? idx : 0
+    } else {
+      currentIndex.value = 0
+    }
   } catch (e) {
     error.value =
       e?.response?.data?.message || e?.message || 'Fahrzeug konnte nicht geladen werden.'
@@ -48,12 +91,28 @@ onMounted(async () => {
 
       <!-- Details -->
       <section v-else class="details-card">
-        <!-- Bild -->
+        <!-- Bild + Slider -->
         <div class="details-image">
-          <img
-            :src="vehicle.bildUrl || 'https://placehold.co/1200x700?text=Mazari'"
-            :alt="vehicle.marke + ' ' + vehicle.modell"
-          />
+          <img :src="currentImageUrl" :alt="currentImageAlt" />
+
+          <!-- Slider-Controls nur, wenn mehrere Bilder -->
+          <button
+            v-if="hasImages && vehicle.bilder.length > 1"
+            class="slider-btn slider-btn-left"
+            type="button"
+            @click="prevImage"
+          >
+            ‹
+          </button>
+          <button
+            v-if="hasImages && vehicle.bilder.length > 1"
+            class="slider-btn slider-btn-right"
+            type="button"
+            @click="nextImage"
+          >
+            ›
+          </button>
+
           <div class="details-status">
             {{ vehicle.status }}
           </div>
@@ -200,6 +259,36 @@ onMounted(async () => {
   color: #667085;
   font-weight: 700;
   font-size: 14px;
+}
+
+.slider-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--mazari-primary);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.slider-btn-left {
+  left: 12px;
+}
+
+.slider-btn-right {
+  right: 12px;
+}
+
+.slider-btn:hover {
+  background: rgba(15, 23, 42, 0.9);
 }
 
 /* Highlights */

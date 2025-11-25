@@ -1,7 +1,7 @@
 <script setup>
 import NavBar from '@/components/NavBar.vue'
 import VehicleCard from '@/components/vehicles/VehicleCard.vue'
-import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue'
+import { onMounted, ref } from 'vue'
 import vehicleService from '@/api/vehicleService'
 
 // =====================
@@ -15,7 +15,10 @@ const modalOpen = ref(false)
 const saving = ref(false)
 const modalError = ref('')
 
-// Edit-Form (defaults)
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+
+// Edit-Form (nur Stammdaten)
 const emptyForm = () => ({
   id: null,
   marke: '',
@@ -32,65 +35,54 @@ const emptyForm = () => ({
   freiKmProTag: null,
   kaution: null,
   status: 'AKTIV',
-  bildUrl: '',
 })
 
 const editForm = ref(emptyForm())
 
-// Bild state
-const newImageFile = ref(null)
+// Bilder für das aktuell bearbeitete Fahrzeug
+const editImages = ref([]) // [{id,url,vorschau,sortierung}, ...]
 
-// Backend Base (prod-ready via .env)
-const BACKEND = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+// Files zum Ersetzen einzelner Bilder (key = bildId)
+const replaceFiles = ref({}) // { [bildId]: File }
+const replacePreviews = ref({}) // { [bildId]: objectUrl }
 
-// =====================
-// IMAGE PREVIEW (mit Cleanup)
-// =====================
-const previewUrl = ref(null)
+const newImages = ref([]) // Array<File>
+const newImagePreviews = ref([]) // Array<objectUrl>
 
-watch(newImageFile, (file) => {
-  // alte Preview aufräumen -> kein Memory Leak
-  if (previewUrl.value) {
-    URL.revokeObjectURL(previewUrl.value)
-    previewUrl.value = null
-  }
-  if (file) previewUrl.value = URL.createObjectURL(file)
-})
+const onNewImagesChange = (e) => {
+  const files = Array.from(e.target.files || [])
+  if (!files.length) return
 
-onBeforeUnmount(() => {
-  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
-})
+  // an vorhandene anhängen (falls mehrfach gewählt wird)
+  newImages.value = [...newImages.value, ...files]
 
-// finaler Preview-Src fürs Modal
-const imagePreview = computed(() => {
-  if (previewUrl.value) return previewUrl.value
+  const urls = files.map((f) => URL.createObjectURL(f))
+  newImagePreviews.value = [...newImagePreviews.value, ...urls]
 
-  const url = editForm.value.bildUrl
+  // Input resetten
+  e.target.value = ''
+}
+
+const resolveImageUrl = (url) => {
   if (!url) return 'https://placehold.co/520x320?text=Mazari'
-  return url.startsWith('http') ? url : `${BACKEND}${url}`
-})
+  if (url.startsWith('http')) return url
+  return API_BASE_URL + url
+}
 
 // =====================
 // LOAD VEHICLES (ADMIN)
-// Race-safe (falls Komponente schnell wechselt)
 // =====================
-let loadSeq = 0
-
-async function loadVehicles() {
-  const seq = ++loadSeq
+const loadVehicles = async () => {
   try {
     loading.value = true
     error.value = ''
     const data = await vehicleService.getAllVehiclesAdmin()
-    if (seq !== loadSeq) return // ignore old response
-
     vehicles.value = Array.isArray(data) ? data : []
   } catch (e) {
-    if (seq !== loadSeq) return
     error.value =
       e?.response?.data?.message || e?.message || 'Fahrzeuge konnten nicht geladen werden.'
   } finally {
-    if (seq === loadSeq) loading.value = false
+    loading.value = false
   }
 }
 
@@ -101,10 +93,16 @@ onMounted(loadVehicles)
 // =====================
 function openEdit(vehicle) {
   modalError.value = ''
+  editImages.value = vehicle.bilder || []
+  newImages.value = []
+  newImagePreviews.value = []
   modalOpen.value = true
-  newImageFile.value = null
 
-  // nur bekannte Felder übernehmen -> stabiler
+  replaceFiles.value = {}
+  // alte Previews aufräumen
+  Object.values(replacePreviews.value).forEach((url) => URL.revokeObjectURL(url))
+  replacePreviews.value = {}
+
   editForm.value = {
     ...emptyForm(),
     id: vehicle.id ?? null,
@@ -122,29 +120,55 @@ function openEdit(vehicle) {
     freiKmProTag: vehicle.freiKmProTag ?? null,
     kaution: vehicle.kaution ?? null,
     status: vehicle.status ?? 'AKTIV',
-    bildUrl: vehicle.bildUrl ?? '',
   }
+
+  editImages.value = vehicle.bilder || []
 }
 
 function closeEdit() {
   modalOpen.value = false
   modalError.value = ''
-  newImageFile.value = null
   editForm.value = emptyForm()
+  editImages.value = []
+
+  Object.values(replacePreviews.value).forEach((url) => URL.revokeObjectURL(url))
+  replacePreviews.value = {}
+  replaceFiles.value = {}
+
+  newImages.value.forEach((_f, i) => {
+    const url = newImagePreviews.value[i]
+    if (url) URL.revokeObjectURL(url)
+  })
+  newImages.value = []
+  newImagePreviews.value = []
 }
 
-// File Input Change
-function onFileChange(e) {
-  newImageFile.value = e.target.files?.[0] || null
+// File auswählen für ein bestimmtes Bild
+function onReplaceFileChange(bildId, e) {
+  const file = e.target.files?.[0] || null
+  if (!file) {
+    if (replaceFiles.value[bildId]) delete replaceFiles.value[bildId]
+    if (replacePreviews.value[bildId]) {
+      URL.revokeObjectURL(replacePreviews.value[bildId])
+      delete replacePreviews.value[bildId]
+    }
+    return
+  }
+
+  replaceFiles.value = { ...replaceFiles.value, [bildId]: file }
+
+  if (replacePreviews.value[bildId]) {
+    URL.revokeObjectURL(replacePreviews.value[bildId])
+  }
+  const url = URL.createObjectURL(file)
+  replacePreviews.value = { ...replacePreviews.value, [bildId]: url }
 }
 
 // =====================
-// Payload normalisieren (Nummern sauber)
+// Payload normalisieren
 // =====================
 function normalizePayload(form) {
   const payload = { ...form }
-
-  // id nicht mitsenden (Backend braucht es nicht im Body)
   delete payload.id
 
   const intFields = ['baujahr', 'ps', 'sitze', 'tueren', 'freiKmProTag']
@@ -167,7 +191,7 @@ function normalizePayload(form) {
 // SAVE EDIT
 // =====================
 async function saveEdit() {
-  if (saving.value) return // doppelklick-sicher
+  if (saving.value) return
   modalError.value = ''
 
   try {
@@ -179,26 +203,24 @@ async function saveEdit() {
       return
     }
 
-    // 1) Daten updaten
-    const updatedVehicle = await vehicleService.updateVehicle(id, normalizePayload(editForm.value))
+    // 1) Stammdaten
+    await vehicleService.updateVehicle(id, normalizePayload(editForm.value))
 
-    // Fallback falls Backend nix zurückgibt
-    let finalVehicle = updatedVehicle || { ...editForm.value }
-
-    // 2) Optional Bild hochladen
-    if (newImageFile.value) {
-      const withImage = await vehicleService.uploadVehicleImage(id, newImageFile.value)
-      finalVehicle = withImage || finalVehicle
+    // 2) Bestehende Bilder ersetzen
+    const entries = Object.entries(replaceFiles.value)
+    for (const [bildIdStr, file] of entries) {
+      const bildId = Number(bildIdStr)
+      if (!file || !bildId) continue
+      await vehicleService.replaceVehicleImage(id, bildId, file)
     }
 
-    // 3) Liste lokal patchen (performant)
-    const idx = vehicles.value.findIndex((v) => v.id === finalVehicle.id)
-    if (idx !== -1) {
-      vehicles.value.splice(idx, 1, finalVehicle)
-    } else {
-      vehicles.value.unshift(finalVehicle)
+    // 3) NEU: zusätzliche Bilder anhängen
+    if (newImages.value.length > 0) {
+      await vehicleService.uploadVehicleImages(id, newImages.value)
     }
 
+    // 4) Liste neu laden
+    await loadVehicles()
     closeEdit()
   } catch (e) {
     console.error('Update fehlgeschlagen:', e)
@@ -244,29 +266,73 @@ async function saveEdit() {
           <h3 class="modal-title">Fahrzeug bearbeiten</h3>
 
           <div class="modal-grid">
-            <!-- BILD -->
+            <!-- BILDER -->
+            <!-- BILDER -->
             <div class="field field-full">
-              <label>Bild</label>
+              <label>Bilder</label>
 
-              <div class="image-row">
-                <img class="preview" :src="imagePreview" alt="Vorschau" />
+              <div class="images-grid">
+                <div v-for="img in editImages" :key="img.id" class="image-item">
+                  <div class="image-thumb-wrap">
+                    <img
+                      class="image-thumb"
+                      :src="replacePreviews[img.id] || resolveImageUrl(img.url)"
+                      :alt="`Bild ${img.sortierung}`"
+                    />
+                    <span v-if="img.vorschau" class="badge">Vorschau</span>
+                  </div>
 
-                <div class="image-actions">
-                  <input type="file" accept="image/*" @change="onFileChange" />
+                  <div class="image-edit-controls">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      @change="(e) => onReplaceFileChange(img.id, e)"
+                    />
+                    <small class="hint"> Datei auswählen, um dieses Bild zu ersetzen. </small>
+                  </div>
+                </div>
 
-                  <small class="hint"> Wenn du nichts auswählst, bleibt das aktuelle Bild. </small>
+                <p v-if="!editImages.length" class="hint">
+                  Für dieses Fahrzeug sind aktuell keine Bilder hinterlegt.
+                </p>
+              </div>
+
+              <!-- NEU: weitere Bilder hinzufügen -->
+              <div class="new-images-block">
+                <label class="new-images-label">Weitere Bilder hinzufügen</label>
+
+                <!-- kleine Previews der neuen Bilder -->
+                <div v-if="newImagePreviews.length" class="new-images-preview-row">
+                  <div
+                    v-for="(src, idx) in newImagePreviews"
+                    :key="idx"
+                    class="image-thumb-wrap new-thumb"
+                  >
+                    <img :src="src" alt="Neues Bild" class="image-thumb" />
+                  </div>
+                </div>
+
+                <div class="image-edit-controls">
+                  <input type="file" accept="image/*" multiple @change="onNewImagesChange" />
+                  <small class="hint">
+                    Du kannst hier zusätzliche Bilder hochladen. Sie werden an das Fahrzeug
+                    angehängt.
+                  </small>
                 </div>
               </div>
             </div>
 
+            <!-- STAMMDATEN -->
             <div class="field">
               <label>Marke</label>
               <input v-model="editForm.marke" />
             </div>
+
             <div class="field">
               <label>Modell</label>
               <input v-model="editForm.modell" />
             </div>
+
             <div class="field">
               <label>Serie</label>
               <input v-model="editForm.serie" />
@@ -276,6 +342,7 @@ async function saveEdit() {
               <label>Baujahr</label>
               <input v-model="editForm.baujahr" type="number" />
             </div>
+
             <div class="field">
               <label>PS</label>
               <input v-model="editForm.ps" type="number" />
@@ -285,6 +352,7 @@ async function saveEdit() {
               <label>Getriebe</label>
               <input v-model="editForm.getriebe" />
             </div>
+
             <div class="field">
               <label>Kraftstoff</label>
               <input v-model="editForm.kraftstoff" />
@@ -294,6 +362,7 @@ async function saveEdit() {
               <label>Sitze</label>
               <input v-model="editForm.sitze" type="number" />
             </div>
+
             <div class="field">
               <label>Türen</label>
               <input v-model="editForm.tueren" type="number" />
@@ -329,9 +398,13 @@ async function saveEdit() {
             </div>
           </div>
 
+          <p v-if="modalError" class="modal-error">{{ modalError }}</p>
+
           <div class="modal-actions">
             <button class="btn ghost" @click="closeEdit">Abbrechen</button>
-            <button class="btn primary" @click="saveEdit">Speichern</button>
+            <button class="btn primary" :disabled="saving" @click="saveEdit">
+              {{ saving ? 'Speichere…' : 'Speichern' }}
+            </button>
           </div>
         </div>
       </div>
@@ -365,14 +438,131 @@ async function saveEdit() {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(14px, 3vw, 20px);
 }
+.images-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)); /* 3 Bilder je Reihe */
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+/* Jedes Bild-Item füllt seine Spalte */
+.image-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.image-thumb-wrap {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+}
+
+.image-thumb {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
+
+.new-images-block {
+  margin-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 10px;
+}
+
+.new-images-label {
+  display: block;
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.new-images-preview-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.new-thumb {
+  width: 90px;
+}
+
+.new-thumb .image-thumb {
+  height: 70px;
+}
+/* Badge bleibt wie gehabt */
+.badge {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  background: rgba(37, 99, 235, 0.9);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.image-edit-controls {
+  display: flex;
+  flex-direction: column; /* übereinander statt nebeneinander */
+  align-items: stretch;
+}
+.image-edit-controls input[type='file']::file-selector-button {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1.5px solid #0f63ff;
+  background: #ffffff; /* weißer Hintergrund */
+  color: #0f63ff; /* blaue Schrift */
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.image-edit-controls input[type='file']::file-selector-button:hover {
+  background: #0f63ff; /* blau hinterlegt beim Hover */
+  color: #ffffff; /* Schrift wird weiß */
+  box-shadow: 0 4px 10px rgba(15, 99, 255, 0.35);
+}
+
+.image-edit-controls .hint {
+  display: block;
+  margin-top: 4px;
+  text-align: center; /* oder left, wenn du’s links haben willst */
+}
+.modal-error {
+  margin-top: 8px;
+  color: #ef4444;
+  font-weight: 700;
+  text-align: center;
+}
+
 @media (max-width: 960px) {
   .grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .images-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-width: 600px) {
   .grid {
     grid-template-columns: 1fr;
+  }
+  .images-grid {
+    grid-template-columns: 1fr;
+  }
+  .modal {
+    max-height: 92vh;
+    padding: 16px 14px;
   }
 }
 
@@ -403,20 +593,25 @@ async function saveEdit() {
 /* Modal */
 .modal-backdrop {
   position: fixed;
-  inset: 0;
-  background: rgba(2, 6, 23, 0.55);
-  display: grid;
-  place-items: center;
-  z-index: 999;
-  padding: 16px;
+  inset: 0; /* top/right/bottom/left: 0 */
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999; /* über allem */
 }
 
 .modal {
-  width: min(900px, 100%);
-  background: white;
+  background: #fff;
   border-radius: 18px;
-  padding: 18px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  padding: 20px 22px;
+  max-width: 960px;
+  width: 100%;
+  max-height: 90vh; /* nicht höher als Viewport */
+  overflow-y: auto; /* Inhalt scrollt */
+  box-shadow:
+    0 20px 40px rgba(15, 23, 42, 0.25),
+    0 4px 12px rgba(15, 23, 42, 0.12);
 }
 
 .modal-title {

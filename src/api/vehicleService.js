@@ -11,6 +11,7 @@ export const vehicleService = {
     const { data } = await api.get('/api/fahrzeuge')
     return data
   },
+
   async getVehicleById(id) {
     const { data } = await api.get(`/api/fahrzeuge/${id}`)
     return data
@@ -38,18 +39,31 @@ export const vehicleService = {
     return data
   },
 
-  // Bild hochladen (Admin)
-  // Endpoint muss im Backend existieren: POST /api/admin/fahrzeuge/{id}/bild
-  async uploadVehicleImage(id, file) {
+  // Mehrere Bilder hochladen (Admin)
+  // Endpoint im Backend: POST /api/admin/fahrzeuge/{id}/bilder
+  // @RequestParam("files") List<MultipartFile> files
+  async uploadVehicleImages(id, files) {
     const formData = new FormData()
-    formData.append('file', file)
+    files.forEach((file) => formData.append('files', file))
 
-    const { data } = await api.post(`/api/admin/fahrzeuge/${id}/bild`, formData, {
+    const { data } = await api.post(`/api/admin/fahrzeuge/${id}/bilder`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
 
     return data
   },
+
+  async replaceVehicleImage(vehicleId, bildId, file) {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const { data } = await api.put(`/api/admin/fahrzeuge/${vehicleId}/bilder/${bildId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+
+    return data
+  },
+
   // Fahrzeug updaten (Admin)
   async updateVehicle(id, dto) {
     const { data } = await api.put(`/api/admin/fahrzeuge/${id}`, dto)
