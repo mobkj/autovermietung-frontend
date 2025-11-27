@@ -11,15 +11,18 @@ const faqs = [
         Du wählst Zeitraum & Fahrzeug, schließt die Buchung ab und bekommst sofort eine Bestätigung mit Buchungsnummer per Mail.`,
   },
   {
+    // TODO: Barzahlung vor Ort final definieren & implementieren
     q: 'Welche Zahlungsmöglichkeiten gibt es?',
     a: `Du kannst online bezahlen oder vor Ort.
-        Barzahlung ist möglich – die Kaution wird jedoch online oder per Karte hinterlegt.`,
+        Barzahlung ist möglich – muss noch geplant werden.`,
   },
   {
     q: 'Wie funktioniert die Kaution?',
     a: `Die Kaution dient als Sicherheit für die Mietdauer.
-        Sie wird bei Buchung bzw. Abholung online/kartengestützt hinterlegt und nach Rückgabe – sofern alles passt – automatisch freigegeben.`,
+      Den Mietpreis zahlst du bequem online.
+      Die Kaution selbst wird nicht online eingezogen – du kannst sie bei Übernahme entweder bar hinterlegen oder alternativ dein eigenes Fahrzeug als Sicherheit hinterlassen.`,
   },
+
   {
     q: 'Kann ich auch bar bezahlen?',
     a: `Ja, der Mietpreis kann bar vor Ort gezahlt werden.

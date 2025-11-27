@@ -3,6 +3,8 @@ import NavBar from '@/components/NavBar.vue'
 import { onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { vehicleService } from '@/api/vehicleService'
+import VehicleBookingOverview from '@/components/booking/VehicleBookingOverview.vue'
+import VehicleDetailsCard from '@/components/vehicles/VehicleDetailsCard.vue'
 
 const route = useRoute()
 const id = computed(() => route.params.id)
@@ -12,47 +14,6 @@ const loading = ref(true)
 const error = ref('')
 
 const currentIndex = ref(0)
-const placeholderImg = 'https://placehold.co/1200x700?text=Mazari'
-const API_BASE_URL = import.meta.env.VITE_API_URL || ''
-
-const priceFormatted = computed(() => {
-  if (!vehicle.value?.nettoPreisProTag) return ''
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-  }).format(vehicle.value.nettoPreisProTag)
-})
-
-const hasImages = computed(() => !!vehicle.value?.bilder?.length)
-
-const currentImageUrl = computed(() => {
-  const bilder = vehicle.value?.bilder || []
-  if (!bilder.length) return placeholderImg
-
-  const path = bilder[currentIndex.value]?.url
-  if (!path) return placeholderImg
-  if (path.startsWith('http')) return path
-
-  return API_BASE_URL + path
-})
-
-const currentImageAlt = computed(() => {
-  if (!vehicle.value) return 'Fahrzeugbild'
-  return `${vehicle.value.marke} ${vehicle.value.modell}`
-})
-
-const nextImage = () => {
-  if (!hasImages.value) return
-  const bilder = vehicle.value.bilder
-  currentIndex.value = (currentIndex.value + 1) % bilder.length
-}
-
-const prevImage = () => {
-  if (!hasImages.value) return
-  const bilder = vehicle.value.bilder
-  currentIndex.value = (currentIndex.value - 1 + bilder.length) % bilder.length
-}
 
 onMounted(async () => {
   try {
@@ -90,91 +51,10 @@ onMounted(async () => {
       </div>
 
       <!-- Details -->
-      <section v-else class="details-card">
-        <!-- Bild + Slider -->
-        <div class="details-image">
-          <img :src="currentImageUrl" :alt="currentImageAlt" />
-
-          <!-- Slider-Controls nur, wenn mehrere Bilder -->
-          <button
-            v-if="hasImages && vehicle.bilder.length > 1"
-            class="slider-btn slider-btn-left"
-            type="button"
-            @click="prevImage"
-          >
-            ‹
-          </button>
-          <button
-            v-if="hasImages && vehicle.bilder.length > 1"
-            class="slider-btn slider-btn-right"
-            type="button"
-            @click="nextImage"
-          >
-            ›
-          </button>
-
-          <div class="details-status">
-            {{ vehicle.status }}
-          </div>
-        </div>
-
-        <!-- Content -->
-        <div class="details-content">
-          <!-- Head -->
-          <div class="details-head">
-            <h1 class="details-title">{{ vehicle.marke }} {{ vehicle.modell }}</h1>
-            <p class="details-sub">
-              {{ vehicle.serie }} · {{ vehicle.baujahr }} · {{ vehicle.ps }} PS
-            </p>
-          </div>
-
-          <!-- Price / Highlights -->
-          <div class="details-highlights">
-            <div class="highlight">
-              <div class="highlight-label">Preis / Tag netto</div>
-              <div class="highlight-value">{{ priceFormatted }}</div>
-            </div>
-            <div class="highlight">
-              <div class="highlight-label">Freikilometer</div>
-              <div class="highlight-value">{{ vehicle.freiKmProTag }} km/Tag</div>
-            </div>
-            <div class="highlight" v-if="vehicle.kaution">
-              <div class="highlight-label">Kaution</div>
-              <div class="highlight-value">{{ vehicle.kaution }} €</div>
-            </div>
-          </div>
-
-          <!-- Specs -->
-          <div class="details-specs">
-            <div class="spec">
-              <span>Getriebe</span>
-              <strong>{{ vehicle.getriebe }}</strong>
-            </div>
-            <div class="spec">
-              <span>Kraftstoff</span>
-              <strong>{{ vehicle.kraftstoff }}</strong>
-            </div>
-            <div class="spec">
-              <span>Sitze</span>
-              <strong>{{ vehicle.sitze }}</strong>
-            </div>
-            <div class="spec">
-              <span>Türen</span>
-              <strong>{{ vehicle.tueren }}</strong>
-            </div>
-            <div class="spec">
-              <span>Farbe</span>
-              <strong>{{ vehicle.farbe }}</strong>
-            </div>
-          </div>
-
-          <!-- CTA (Booking später) -->
-          <div class="details-actions">
-            <button class="cta primary" disabled>Buchen bald verfügbar</button>
-            <button class="cta ghost" disabled>In Favoriten</button>
-          </div>
-        </div>
-      </section>
+      <div v-else>
+        <VehicleDetailsCard :vehicle="vehicle" />
+        <VehicleBookingOverview v-if="vehicle" :vehicle="vehicle" :vehicle-id="vehicle.id" />
+      </div>
     </main>
   </div>
 </template>

@@ -2,7 +2,7 @@
 import { useAuthStore } from '@/stores/AuthStore'
 import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import mazariLogo from '@/assets/mazari-logo-nav-premium.svg'
+import MazariLogo from '@/components/MazariLogo.vue'
 
 const auth = useAuthStore()
 const mobileOpen = ref(false)
@@ -15,9 +15,7 @@ const toggleMobile = () => (mobileOpen.value = !mobileOpen.value)
   <header class="nav-shell">
     <nav class="nav-bar">
       <!-- LEFT: Logo -->
-      <RouterLink to="/" class="nav-logo" @click="closeMobile">
-        <img :src="mazariLogo" alt="Mazari Autovermietung Logo" />
-      </RouterLink>
+      <MazariLogo />
 
       <!-- CENTER: Desktop Links -->
       <ul class="nav-links">

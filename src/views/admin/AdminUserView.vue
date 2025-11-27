@@ -1,6 +1,9 @@
 <script setup>
 import { adminService } from '@/api/adminService'
 import { onMounted, ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const users = ref([])
 const search = ref('')
@@ -41,6 +44,10 @@ const formatBirthday = (val) => {
   const d = new Date(val)
   if (Number.isNaN(d.getTime())) return val
   return d.toLocaleDateString('de-DE')
+}
+
+const goToBookings = (userId) => {
+  router.push({ name: 'admin-bookings-by-user', params: { userId } })
 }
 </script>
 
@@ -110,7 +117,7 @@ const formatBirthday = (val) => {
 
               <td>
                 <div class="actions">
-                  <button class="btn disabled">Buchungen</button>
+                  <button class="btn" @click="goToBookings(u.id)">Buchungen</button>
                   <button class="btn disabled">Rechnungen</button>
                 </div>
               </td>

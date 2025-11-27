@@ -4,9 +4,10 @@ import { computed } from 'vue'
 const props = defineProps({
   vehicle: { type: Object, required: true },
   isAdmin: { type: Boolean, default: false },
+  onlyAnsicht: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['edit', 'details'])
+const emit = defineEmits(['edit', 'details', 'ansicht'])
 
 const title = computed(() => {
   const s = props.vehicle.serie ? ` ${props.vehicle.serie}` : ''
@@ -57,15 +58,23 @@ const previewImgSrc = computed(() => {
       <div class="vehicle-actions">
         <!-- Kunde -->
         <button
-          v-if="!isAdmin"
+          v-if="!isAdmin && !onlyAnsicht"
           class="vehicle-btn vehicle-btn-underline"
           @click.stop="emit('details', vehicle)"
         >
           Details &amp; Buchen
         </button>
 
+        <button
+          v-if="!isAdmin && onlyAnsicht"
+          class="vehicle-btn vehicle-btn-underline"
+          @click.stop="emit('ansicht', vehicle)"
+        >
+          Details
+        </button>
+
         <!-- Admin -->
-        <button v-else class="vehicle-btn admin" @click.stop="emit('edit', vehicle)">
+        <button v-if="isAdmin" class="vehicle-btn admin" @click.stop="emit('edit', vehicle)">
           Bearbeiten
         </button>
       </div>

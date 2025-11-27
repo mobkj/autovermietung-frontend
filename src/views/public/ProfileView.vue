@@ -24,6 +24,12 @@ const logout = () => {
             <span class="menu-title">Account</span>
             <p class="menu-sub">Persönliche Daten verwalten</p>
           </RouterLink>
+          <div class="trennlinie"></div>
+
+          <RouterLink to="/meine-buchungen" class="menu-item link-wrapper">
+            <span class="menu-title">Meine Buchungen</span>
+            <p class="menu-sub">Persönliche Daten verwalten</p>
+          </RouterLink>
 
           <div class="trennlinie"></div>
 

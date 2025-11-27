@@ -59,6 +59,12 @@ const router = createRouter({
       component: () => import('@/views/admin/AccountDetailsView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/meine-buchungen',
+      name: 'my-bookings',
+      component: () => import('@/views/BuchungsUebersichtView.vue'),
+      meta: { requiresAuth: true },
+    },
 
     // ======================
     // ADMIN
@@ -67,6 +73,12 @@ const router = createRouter({
       path: '/account-user-view',
       name: 'admin-users',
       component: () => import('@/views/admin/AdminUserView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/admin/buchungen/user/:userId',
+      name: 'admin-bookings-by-user',
+      component: () => import('@/views/BuchungsUebersichtView.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
     },
 

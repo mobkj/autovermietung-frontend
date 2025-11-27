@@ -1,9 +1,14 @@
+<script setup>
+import { RouterLink } from 'vue-router'
+import MazariLogo from '@/components/MazariLogo.vue'
+</script>
+
 <template>
   <footer class="footer">
     <div class="footer-inner">
       <!-- BRAND -->
       <div class="footer-brand">
-        <img src="https://placehold.co/160x45?text=Mazari" alt="Mazari Logo" class="footer-logo" />
+        <MazariLogo />
         <p class="brand-sub">Premium Autovermietung · Zuverlässig & Modern</p>
       </div>
 
@@ -34,10 +39,6 @@
     </div>
   </footer>
 </template>
-
-<script setup>
-import { RouterLink } from 'vue-router'
-</script>
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
