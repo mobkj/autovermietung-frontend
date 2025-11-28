@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/AuthStore.js'
+import ProfileNavbar from '@/components/ProfileNavbar.vue'
+import FooterInfo from '@/components/FooterInfo.vue'
 
 const currentStep = ref(1)
 
@@ -184,8 +186,8 @@ const submit = async () => {
 </script>
 
 <template>
+  <profile-navbar />
   <div class="auth-wrapper">
-    <profile-navbar />
     <div class="auth-card">
       <h2 class="title">Registrieren</h2>
       <p class="subtitle">Erstelle dein Konto bei Mazari Autovermietung</p>
@@ -434,6 +436,7 @@ const submit = async () => {
       </p>
     </div>
   </div>
+  <footer-info />
 </template>
 
 <style scoped>

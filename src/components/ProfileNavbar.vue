@@ -1,7 +1,11 @@
+<script setup>
+import MazariLogo from '@/components/MazariLogo.vue'
+</script>
+
 <template>
   <nav class="profile-navbar">
     <div class="profile-nav-inner">
-      <img src="https://placehold.co/160x50?text=LOGO" alt="Logo" class="logo" />
+      <MazariLogo />
     </div>
   </nav>
 </template>

@@ -11,6 +11,11 @@ const props = defineProps({
 const auth = useAuthStore()
 const currentUser = computed(() => auth.user || auth.currentUser || null)
 
+const isAdmin = computed(() => {
+  const role = currentUser.value?.role
+  return role === 'ADMIN' || role === 'ROLE_ADMIN'
+})
+
 // === STATE ===
 const today = new Date()
 today.setHours(0, 0, 0, 0)
@@ -238,12 +243,30 @@ async function loadBlockedDates() {
 }
 
 // === BUCHUNG ABSCHICKEN ===
+// === BUCHUNG ABSCHICKEN ===
 async function submitBooking() {
   if (!startDate.value || !endDate.value) return
 
   bookingError.value = ''
   bookingSuccess.value = ''
 
+  const user = currentUser.value
+
+  // Nicht eingeloggt
+  if (!user) {
+    bookingError.value = 'Bitte melde dich an, um eine Buchung vorzunehmen.'
+    return
+  }
+
+  // CUSTOMER: noch keine echte Buchung, erst nach Zahlung
+  if (!isAdmin.value) {
+    bookingError.value =
+      'Du musst zuerst bezahlen, bevor du dieses Fahrzeug verbindlich reservieren kannst. ' +
+      'Die Zahlungsfunktion wird in Kürze freigeschaltet.'
+    return
+  }
+
+  // ADMIN: normale Reservierung wie bisher
   try {
     bookingLoading.value = true
 
@@ -268,18 +291,17 @@ async function submitBooking() {
       return
     }
 
-    const user = currentUser.value
     console.log('[Booking] Current user aus Store:', user)
 
     const payload = {
       fahrzeugId: vehId,
-      userId: user?.id ?? null,
-      kundeName: user ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email : '',
-      kundeEmail: user?.email ?? '',
-      kundePhone: user?.phone ?? '',
+      userId: user.id ?? null,
+      kundeName: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email,
+      kundeEmail: user.email ?? '',
+      kundePhone: user.phone ?? '',
       startDatum: toIsoLocal(s),
       endDatum: toIsoLocal(e),
-      bringService: false, // später Checkbox o. Ä.
+      bringService: false, // später Checkbox o.Ä.
     }
 
     console.log('[Booking] Sende Payload an Backend:', payload)
@@ -288,7 +310,9 @@ async function submitBooking() {
 
     console.log('[Booking] Antwort vom Backend:', response)
 
-    bookingSuccess.value = 'Buchung erfolgreich angefragt.'
+    // ✅ Admin-Text
+    bookingSuccess.value =
+      'Du hast dieses Fahrzeug erfolgreich als Besitzer für dich reserviert. Die Buchung ist im System hinterlegt.'
 
     // Kalender-Blockierungen neu laden + Auswahl zurücksetzen
     await loadBlockedDates()
@@ -297,9 +321,7 @@ async function submitBooking() {
   } catch (e) {
     console.error('[Booking] Fehler beim Buchen:', e)
     bookingError.value =
-      e?.response?.data?.message ||
-      e?.message ||
-      'Buchung konnte nicht erstellt werden (evtl. Zeitraum belegt?).'
+      'Der gewählte Buchungszeitraum enthält belegte Tage, bitte wähle einen anderen Zeitraum.'
   } finally {
     bookingLoading.value = false
   }

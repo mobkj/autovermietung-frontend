@@ -152,24 +152,22 @@ const groupedBookings = computed(() => {
 onMounted(async () => {
   try {
     loading.value = true
-    let userId
-
     if (isAdminView.value) {
-      userId = userIdParam.value
+      const userId = userIdParam.value
       console.log('[Buchungsübersicht] Admin-View für User-ID HALLO:', userId)
       bookings.value = await bookingService.getBookingsByUserAdmin(userId)
     } else {
-      userId = auth.user.id
       console.log('[Buchungsübersicht] Kunden-View – Auth-Store:', auth)
-      console.log('[Buchungsübersicht] Verwende User-ID aus Store:', userId)
 
-      if (!userId) {
+      // optionaler Check – Route sollte sowieso requiresAuth haben
+      if (!auth.user && !auth.currentUser) {
         bookings.value = []
         error.value = 'Bitte melde dich an, um deine Buchungen zu sehen.'
         return
       }
 
-      bookings.value = await bookingService.getMyBookings(userId)
+      // 🔥 kein userId mehr übergeben, Backend nimmt User aus JWT
+      bookings.value = await bookingService.getMyBookings()
     }
 
     console.log('[Buchungsübersicht] Buchungen geladen:', bookings.value)

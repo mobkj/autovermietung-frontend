@@ -261,7 +261,7 @@ async function saveEdit() {
 
     <!-- MODAL -->
     <teleport to="body">
-      <div v-if="modalOpen" class="modal-backdrop" @click.self="closeEdit">
+      <div v-if="modalOpen" class="modal-backdrop">
         <div class="modal">
           <h3 class="modal-title">Fahrzeug bearbeiten</h3>
 

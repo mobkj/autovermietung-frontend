@@ -27,6 +27,16 @@ const router = createRouter({
       name: 'fahrzeug-details',
       component: () => import('../views/public/FahrzeugDetailsView.vue'),
     },
+    {
+      path: '/impressum',
+      name: 'Impressum',
+      component: () => import('@/views/public/ImpressumView.vue'),
+    },
+    {
+      path: '/datenschutz',
+      name: 'Datenschutz',
+      component: () => import('@/views/public/DatenschutzView.vue'),
+    },
 
     // ======================
     // AUTH
@@ -104,6 +114,15 @@ const router = createRouter({
       redirect: '/',
     },
   ],
+  scrollBehavior(to, from, savedPosition) {
+    // Browser-Zurück/Vorwärts -> alte Position wiederherstellen
+    if (savedPosition) {
+      return savedPosition
+    }
+
+    // sonst immer nach oben
+    return { left: 0, top: 0 }
+  },
 })
 
 /* ##################################################################################

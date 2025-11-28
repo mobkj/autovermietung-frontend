@@ -19,8 +19,8 @@ export const bookingService = {
   },
 
   // KUNDE: eigene Buchungen sehen
-  async getMyBookings(userId) {
-    const { data } = await api.get(`/api/buchungen/user/${userId}`)
+  async getMyBookings() {
+    const { data } = await api.get('/api/buchungen/me')
     return data
   },
 
