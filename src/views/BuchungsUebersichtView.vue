@@ -12,10 +12,11 @@ const auth = useAuthStore()
 
 const userIdParam = computed(() => (route.params.userId ? Number(route.params.userId) : null))
 const isAdminView = computed(() => !!userIdParam.value)
-
+const isAdminUser = computed(() => auth.user?.role === 'ADMIN' || auth.user?.role === 'ROLE_ADMIN')
 const bookings = ref([])
 const loading = ref(true)
 const error = ref('')
+const cancelLoadingId = ref(null)
 
 // Map: fahrzeugId -> Fahrzeug-Objekt
 const vehiclesMap = ref({})
@@ -145,6 +146,34 @@ const groupedBookings = computed(() => {
 
   return Array.from(map.values())
 })
+
+async function onAdminCancel(buchung) {
+  const confirmed = window.confirm(
+    `Möchtest du die Buchung ${buchung.buchungsNummer || '#' + buchung.id} wirklich freigeben (stornieren)?`,
+  )
+  if (!confirmed) return
+
+  try {
+    cancelLoadingId.value = buchung.id
+    const updated = await bookingService.cancelBooking(buchung.id)
+
+    // Booking in der Liste ersetzen
+    bookings.value = bookings.value.map((b) => (b.id === updated.id ? updated : b))
+  } catch (e) {
+    console.error('[Buchungsübersicht] Fehler beim Stornieren:', e)
+    window.alert(
+      e?.response?.data?.message ||
+        'Die Buchung konnte nicht storniert werden. Bitte versuche es später erneut.',
+    )
+  } finally {
+    cancelLoadingId.value = null
+  }
+}
+
+// Für Kunden vorerst nur Info – noch ohne echte Stornologik
+function onCustomerCancelInfo() {
+  window.alert('Die Stornierungsfunktion für Kunden wird in Kürze freigeschaltet.')
+}
 
 // ===============================
 // Load
@@ -287,13 +316,38 @@ onMounted(async () => {
                     >
                       {{ b.bringService ? 'Fahrzeug wird geliefert' : 'Nicht angefordert' }}
                     </span>
-                    <!-- TODO: Rechnungs Details hier einfügen-->
                   </div>
 
                   <div class="section-line" v-if="b.gesamtPreis != null">
                     <span class="tag">Gesamtpreis (netto)</span>
                     <span class="value">{{ formatCurrency(b.gesamtPreis) }}</span>
                   </div>
+                </div>
+
+                <!-- Aktionen: immer unter den Sektionen, über gesamte Breite -->
+                <div v-if="b.status !== 'STORNIERT'" class="booking-actions">
+                  <!-- Admin-Ansicht: Buchung freigeben -->
+                  <button
+                    v-if="isAdminUser"
+                    class="action-btn danger"
+                    type="button"
+                    :disabled="cancelLoadingId === b.id"
+                    @click="onAdminCancel(b)"
+                  >
+                    {{
+                      cancelLoadingId === b.id ? 'Gibt Buchung frei…' : 'Buchung wieder freigeben'
+                    }}
+                  </button>
+
+                  <!-- Kunden-Ansicht: Button vorbereitet, aktuell nur Hinweis -->
+                  <button
+                    v-else
+                    class="action-btn ghost"
+                    type="button"
+                    @click="onCustomerCancelInfo"
+                  >
+                    Buchung stornieren
+                  </button>
                 </div>
               </div>
             </article>
@@ -495,6 +549,63 @@ onMounted(async () => {
   gap: 8px;
   font-size: 13px;
   margin-top: 4px;
+}
+
+.booking-actions {
+  grid-column: 1 / -1; /* über beide Spalten */
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.action-btn {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.1s ease;
+}
+
+.action-btn:hover:enabled {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.15);
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Roter Admin-Button */
+.action-btn.danger {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.action-btn.danger:hover:enabled {
+  background: #fecaca;
+}
+
+/* „Ghost“-Button für Kunden */
+.action-btn.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: #0f172a;
+}
+
+.action-btn.ghost:hover {
+  background: #e2e8f0;
 }
 
 .tag {

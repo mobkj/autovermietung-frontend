@@ -1,5 +1,6 @@
 // src/api/bookingService.js
 import api from '@/api/axios'
+import { useAuthStore } from '@/stores/AuthStore'
 
 export const bookingService = {
   // =========================
@@ -25,10 +26,6 @@ export const bookingService = {
   },
 
   // Buchung stornieren (Kunde oder Admin – je nach Backend-Security)
-  async cancelBooking(buchungId) {
-    const { data } = await api.put(`/api/buchungen/${buchungId}/stornieren`)
-    return data
-  },
 
   // =========================
   // ADMIN
@@ -49,6 +46,19 @@ export const bookingService = {
   // ADMIN: Fahrzeug-Block (interne Reservierung, wird als RESERVIERT gespeichert)
   async adminBlockBooking(payload) {
     const { data } = await api.post('/api/admin/buchungen/block', payload)
+    return data
+  },
+
+  async cancelBooking(buchungId) {
+    const auth = useAuthStore()
+    const role = auth.user?.role || auth.currentUser?.role
+    const isAdmin = role === 'ADMIN' || role === 'ROLE_ADMIN'
+
+    const url = isAdmin
+      ? `/api/admin/buchungen/${buchungId}/stornieren` // Admin: Buchung freigeben
+      : `/api/buchungen/${buchungId}/stornieren` // Kunde: eigene Buchung stornieren
+
+    const { data } = await api.put(url)
     return data
   },
 }

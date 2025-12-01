@@ -2,6 +2,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { bookingService } from '@/api/bookingService'
 import { useAuthStore } from '@/stores/AuthStore'
+import BookingPriceBox from '@/components/booking/BookingPriceBox.vue'
 
 const props = defineProps({
   vehicleId: { type: Number, required: false },
@@ -31,8 +32,25 @@ const bookingLoading = ref(false)
 const bookingError = ref('')
 const bookingSuccess = ref('')
 
+const createdBooking = ref(null) // die soeben erstellte Buchung
+const bookingStatusTest = ref('') // nur für UI: "BEZAHLT (TEST)"
+const lastLoadedPrice = ref(null) // Preis aus dem Modal
+const showPriceModal = ref(false) // steuert das Modal
+
 // Buchungen für dieses Fahrzeug -> belegte Tage
 const bookedRanges = ref([])
+
+// === Preis-Modal Events ===
+const onPriceLoaded = (preisDto) => {
+  console.log('[Preis] Preis geladen:', preisDto)
+  lastLoadedPrice.value = preisDto
+}
+
+const onPricePay = (payload) => {
+  console.log('[PAY] Klick auf bezahlen (TEST):', payload)
+  // später: Stripe-Checkout starten
+  showPriceModal.value = false
+}
 
 // === HELPERS (Dates) ===
 function startOfMonth(d) {
@@ -243,12 +261,15 @@ async function loadBlockedDates() {
 }
 
 // === BUCHUNG ABSCHICKEN ===
-// === BUCHUNG ABSCHICKEN ===
 async function submitBooking() {
   if (!startDate.value || !endDate.value) return
 
   bookingError.value = ''
   bookingSuccess.value = ''
+  createdBooking.value = null
+  bookingStatusTest.value = ''
+  lastLoadedPrice.value = null
+  showPriceModal.value = false
 
   const user = currentUser.value
 
@@ -258,15 +279,6 @@ async function submitBooking() {
     return
   }
 
-  // CUSTOMER: noch keine echte Buchung, erst nach Zahlung
-  if (!isAdmin.value) {
-    bookingError.value =
-      'Du musst zuerst bezahlen, bevor du dieses Fahrzeug verbindlich reservieren kannst. ' +
-      'Die Zahlungsfunktion wird in Kürze freigeschaltet.'
-    return
-  }
-
-  // ADMIN: normale Reservierung wie bisher
   try {
     bookingLoading.value = true
 
@@ -307,15 +319,26 @@ async function submitBooking() {
     console.log('[Booking] Sende Payload an Backend:', payload)
 
     const response = await bookingService.createBooking(payload)
-
     console.log('[Booking] Antwort vom Backend:', response)
+    createdBooking.value = response
 
-    // ✅ Admin-Text
-    bookingSuccess.value =
-      'Du hast dieses Fahrzeug erfolgreich als Besitzer für dich reserviert. Die Buchung ist im System hinterlegt.'
+    if (isAdmin.value) {
+      bookingSuccess.value =
+        'Du hast dieses Fahrzeug erfolgreich als Besitzer für dich reserviert. Die Buchung ist im System hinterlegt.'
+      // Admin: KEIN Zahlungsmodal
+    } else {
+      bookingSuccess.value =
+        'Deine Buchung wurde erstellt und vorläufig reserviert. Im nächsten Schritt kannst du die Zahlung prüfen.'
+      showPriceModal.value = true
+    }
 
-    // Kalender-Blockierungen neu laden + Auswahl zurücksetzen
+    // Nur TEST im Frontend
+    bookingStatusTest.value = 'BEZAHLT (TEST – nur Frontend, nicht im Backend!)'
+
+    // Kalender-Blockierungen neu laden
     await loadBlockedDates()
+
+    // Auswahl zurücksetzen
     startDate.value = null
     endDate.value = null
   } catch (e) {
@@ -450,8 +473,26 @@ onMounted(() => {
         >
           {{ bookingLoading ? 'Sende Buchung…' : 'Weiter zur Buchungsanfrage' }}
         </button>
+
+        <!-- TEST-Anzeige für Buchungsstatus -->
+        <p v-if="createdBooking" class="msg info">
+          Buchungs-ID: <strong>{{ createdBooking.id }}</strong
+          ><br />
+          Test-Status: <strong>{{ bookingStatusTest }}</strong>
+        </p>
       </div>
     </div>
+
+    <!-- Preis-Modal: nur für Kunden, nicht für Admin -->
+    <BookingPriceBox
+      v-if="createdBooking && showPriceModal && !isAdmin"
+      :visible="showPriceModal"
+      :buchung-id="createdBooking.id"
+      :initial-km-paket="150"
+      @close="showPriceModal = false"
+      @price-loaded="onPriceLoaded"
+      @pay="onPricePay"
+    />
   </section>
 </template>
 
