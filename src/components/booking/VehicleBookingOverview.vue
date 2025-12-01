@@ -1,8 +1,9 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { bookingService } from '@/api/bookingService'
 import { useAuthStore } from '@/stores/AuthStore'
 import BookingPriceBox from '@/components/booking/BookingPriceBox.vue'
+import { stripeService } from '@/api/stripeService'
 
 const props = defineProps({
   vehicleId: { type: Number, required: false },
@@ -22,8 +23,8 @@ const today = new Date()
 today.setHours(0, 0, 0, 0)
 
 const currentMonth = ref(startOfMonth(today))
-const startDate = ref(null) // Date | null
-const endDate = ref(null) // Date | null
+const startDate = ref(null)
+const endDate = ref(null)
 
 const pickupTime = ref('10:00')
 const returnTime = ref('10:00')
@@ -32,13 +33,22 @@ const bookingLoading = ref(false)
 const bookingError = ref('')
 const bookingSuccess = ref('')
 
-const createdBooking = ref(null) // die soeben erstellte Buchung
-const bookingStatusTest = ref('') // nur für UI: "BEZAHLT (TEST)"
-const lastLoadedPrice = ref(null) // Preis aus dem Modal
-const showPriceModal = ref(false) // steuert das Modal
+const createdBooking = ref(null)
+const lastLoadedPrice = ref(null)
+const showPriceModal = ref(false)
 
 // Buchungen für dieses Fahrzeug -> belegte Tage
 const bookedRanges = ref([])
+
+// === Reservierungs-Timer (5 Minuten vom Backend) ===
+const reservationExpiresAt = ref(null) // Date | null
+const reservationRemaining = ref('') // z.B. "04:59"
+let reservationIntervalId = null
+
+const reservationActive = computed(() => {
+  if (!reservationExpiresAt.value) return false
+  return reservationExpiresAt.value.getTime() > Date.now()
+})
 
 // === Preis-Modal Events ===
 const onPriceLoaded = (preisDto) => {
@@ -46,10 +56,38 @@ const onPriceLoaded = (preisDto) => {
   lastLoadedPrice.value = preisDto
 }
 
-const onPricePay = (payload) => {
-  console.log('[PAY] Klick auf bezahlen (TEST):', payload)
-  // später: Stripe-Checkout starten
-  showPriceModal.value = false
+// Stripe-Checkout starten
+const onPricePay = async ({ kmPaket }) => {
+  if (!createdBooking.value) return
+
+  // Reservierung noch gültig?
+  if (!reservationActive.value) {
+    bookingError.value =
+      'Deine Reservierung ist abgelaufen. Bitte wähle den Zeitraum erneut und starte die Buchung neu.'
+    showPriceModal.value = false
+    return
+  }
+
+  try {
+    bookingError.value = ''
+
+    const res = await stripeService.createCheckoutSession({
+      buchungId: createdBooking.value.id,
+      freieKmPaket: kmPaket,
+    })
+
+    console.log('[Stripe] Checkout-Session Antwort:', res)
+
+    if (res.checkoutUrl) {
+      window.open(res.checkoutUrl, '_blank', 'noopener,noreferrer')
+    } else {
+      bookingError.value = 'Konnte die Zahlung nicht starten. Bitte versuche es erneut.'
+    }
+  } catch (e) {
+    console.error('[Stripe] Fehler beim Starten der Zahlung:', e)
+    bookingError.value =
+      'Es ist ein Fehler beim Starten der Zahlung aufgetreten. Bitte versuche es erneut.'
+  }
 }
 
 // === HELPERS (Dates) ===
@@ -180,7 +218,7 @@ const daysGrid = computed(() => {
 
   const days = []
 
-  let weekday = start.getDay() // 0-6
+  let weekday = start.getDay()
   if (weekday === 0) weekday = 7 // Sonntag -> 7
 
   for (let i = 1; i < weekday; i++) {
@@ -246,6 +284,52 @@ const formattedEndDate = computed(() =>
     : '',
 )
 
+// === Reservierungs-Timer Helper ===
+function clearReservationTimer() {
+  if (reservationIntervalId) {
+    clearInterval(reservationIntervalId)
+    reservationIntervalId = null
+  }
+}
+
+function updateReservationCountdown() {
+  if (!reservationExpiresAt.value) {
+    reservationRemaining.value = ''
+    return
+  }
+  const diffMs = reservationExpiresAt.value.getTime() - Date.now()
+  if (diffMs <= 0) {
+    reservationRemaining.value = '00:00'
+    clearReservationTimer()
+    showPriceModal.value = false
+    bookingError.value =
+      'Deine Reservierung ist abgelaufen. Bitte wähle den Zeitraum erneut und starte die Buchung neu.'
+    return
+  }
+  const totalSec = Math.floor(diffMs / 1000)
+  const mins = Math.floor(totalSec / 60)
+  const secs = totalSec % 60
+  reservationRemaining.value = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
+function startReservationTimer(reserviertBisIso) {
+  clearReservationTimer()
+  if (!reserviertBisIso) {
+    reservationExpiresAt.value = null
+    reservationRemaining.value = ''
+    return
+  }
+  const expiry = new Date(reserviertBisIso)
+  if (Number.isNaN(expiry.getTime())) {
+    reservationExpiresAt.value = null
+    reservationRemaining.value = ''
+    return
+  }
+  reservationExpiresAt.value = expiry
+  updateReservationCountdown()
+  reservationIntervalId = setInterval(updateReservationCountdown, 1000)
+}
+
 // === BUCHUNGEN FÜR KALENDER LADEN ===
 async function loadBlockedDates() {
   const vehId = props.vehicleId ?? props.vehicle?.id
@@ -267,13 +351,14 @@ async function submitBooking() {
   bookingError.value = ''
   bookingSuccess.value = ''
   createdBooking.value = null
-  bookingStatusTest.value = ''
   lastLoadedPrice.value = null
   showPriceModal.value = false
+  clearReservationTimer()
+  reservationExpiresAt.value = null
+  reservationRemaining.value = ''
 
   const user = currentUser.value
 
-  // Nicht eingeloggt
   if (!user) {
     bookingError.value = 'Bitte melde dich an, um eine Buchung vorzunehmen.'
     return
@@ -282,7 +367,6 @@ async function submitBooking() {
   try {
     bookingLoading.value = true
 
-    // DateTimes mit Zeiten zusammenbauen
     const s = new Date(startDate.value)
     const e = new Date(endDate.value)
 
@@ -313,7 +397,7 @@ async function submitBooking() {
       kundePhone: user.phone ?? '',
       startDatum: toIsoLocal(s),
       endDatum: toIsoLocal(e),
-      bringService: false, // später Checkbox o.Ä.
+      bringService: false, // TODO: später echte Checkbox aus UI übernehmen
     }
 
     console.log('[Booking] Sende Payload an Backend:', payload)
@@ -322,18 +406,20 @@ async function submitBooking() {
     console.log('[Booking] Antwort vom Backend:', response)
     createdBooking.value = response
 
-    if (isAdmin.value) {
-      bookingSuccess.value =
-        'Du hast dieses Fahrzeug erfolgreich als Besitzer für dich reserviert. Die Buchung ist im System hinterlegt.'
-      // Admin: KEIN Zahlungsmodal
-    } else {
-      bookingSuccess.value =
-        'Deine Buchung wurde erstellt und vorläufig reserviert. Im nächsten Schritt kannst du die Zahlung prüfen.'
-      showPriceModal.value = true
+    // Reservierungs-Timer aus Backend (5 Minuten Hold)
+    if (response.reserviertBis) {
+      startReservationTimer(response.reserviertBis)
     }
 
-    // Nur TEST im Frontend
-    bookingStatusTest.value = 'BEZAHLT (TEST – nur Frontend, nicht im Backend!)'
+    if (isAdmin.value) {
+      bookingSuccess.value =
+        'Du hast dieses Fahrzeug erfolgreich reserviert. Die Buchung ist im System hinterlegt.'
+      // Admin: kein Zahlungsmodal
+    } else {
+      bookingSuccess.value =
+        'Deine Buchung wurde erstellt und für 5 Minuten reserviert. Im nächsten Schritt kannst du die Zahlung abschließen.'
+      showPriceModal.value = true
+    }
 
     // Kalender-Blockierungen neu laden
     await loadBlockedDates()
@@ -344,7 +430,7 @@ async function submitBooking() {
   } catch (e) {
     console.error('[Booking] Fehler beim Buchen:', e)
     bookingError.value =
-      'Der gewählte Buchungszeitraum enthält belegte Tage, bitte wähle einen anderen Zeitraum.'
+      'Der gewählte Buchungszeitraum enthält belegte Tage oder ist ungültig. Bitte wähle einen anderen Zeitraum.'
   } finally {
     bookingLoading.value = false
   }
@@ -352,6 +438,10 @@ async function submitBooking() {
 
 onMounted(() => {
   loadBlockedDates()
+})
+
+onUnmounted(() => {
+  clearReservationTimer()
 })
 </script>
 
@@ -458,12 +548,16 @@ onMounted(() => {
         </div>
 
         <p class="hint">
-          Hinweis: Dies ist aktuell die Buchungsanfrage. Der Zeitraum wird reserviert, weitere
-          Schritte folgen.
+          Nach dem Absenden wird der Zeitraum für dich reserviert. Du hast anschließend
+          <strong>5 Minuten</strong> Zeit, die Zahlung abzuschließen.
         </p>
 
         <p v-if="bookingError" class="msg error">{{ bookingError }}</p>
         <p v-if="bookingSuccess" class="msg success">{{ bookingSuccess }}</p>
+
+        <p v-if="createdBooking && reservationActive" class="msg info">
+          Deine Reservierung ist noch <strong>{{ reservationRemaining }}</strong> gültig.
+        </p>
 
         <button
           class="cta"
@@ -471,14 +565,11 @@ onMounted(() => {
           :disabled="!startDate || !endDate || bookingLoading"
           @click="submitBooking"
         >
-          {{ bookingLoading ? 'Sende Buchung…' : 'Weiter zur Buchungsanfrage' }}
+          {{ bookingLoading ? 'Sende Buchung…' : 'Buchung jetzt reservieren' }}
         </button>
 
-        <!-- TEST-Anzeige für Buchungsstatus -->
         <p v-if="createdBooking" class="msg info">
-          Buchungs-ID: <strong>{{ createdBooking.id }}</strong
-          ><br />
-          Test-Status: <strong>{{ bookingStatusTest }}</strong>
+          Buchungs-Nr.: <strong>{{ createdBooking.buchungsNummer }}</strong>
         </p>
       </div>
     </div>
@@ -489,6 +580,7 @@ onMounted(() => {
       :visible="showPriceModal"
       :buchung-id="createdBooking.id"
       :initial-km-paket="150"
+      :can-pay="reservationActive"
       @close="showPriceModal = false"
       @price-loaded="onPriceLoaded"
       @pay="onPricePay"

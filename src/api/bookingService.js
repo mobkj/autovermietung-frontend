@@ -12,6 +12,9 @@ export const bookingService = {
     const { data } = await api.post('/api/buchungen', payload)
     return data
   },
+  async cancelMyBooking(id) {
+    return api.put(`/api/buchungen/${id}/stornieren`).then((r) => r.data)
+  },
 
   // Buchungen für ein Fahrzeug (z.B. für Kalender / belegte Tage)
   async getBookingsByVehicle(fahrzeugId) {

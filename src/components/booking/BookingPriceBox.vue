@@ -15,13 +15,17 @@ const props = defineProps({
     type: Number,
     default: 150,
   },
+  canPay: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 const emit = defineEmits(['close', 'price-loaded', 'pay'])
 
 // Auswahl im Modal
 const freieKmPaket = ref(props.initialKmPaket)
-const bringService = ref(false) // Checkbox im Modal
+const bringService = ref(false)
 
 // Daten vom Backend
 const preis = ref(null)
@@ -32,7 +36,7 @@ const errorMessage = computed(
   () => error.value?.response?.data?.message || error.value?.message || 'Unbekannter Fehler',
 )
 
-// Preis vom Backend laden (Km-Paket + Bringservice)
+// Preis vom Backend laden
 const loadPreis = async () => {
   if (!props.buchungId) return
 
@@ -56,7 +60,6 @@ const loadPreis = async () => {
   }
 }
 
-// Km-Paket geändert -> neu berechnen
 watch(
   () => freieKmPaket.value,
   () => {
@@ -65,7 +68,6 @@ watch(
   },
 )
 
-// Bringservice geändert -> neu berechnen
 watch(
   () => bringService.value,
   () => {
@@ -74,20 +76,17 @@ watch(
   },
 )
 
-// Wenn Modal sichtbar wird -> direkt alles berechnen & anzeigen (mit 150 km)
 watch(
   () => props.visible,
   (val) => {
     if (val) {
       freieKmPaket.value = props.initialKmPaket ?? 150
-      // bringService kannst du hier auch aus Props vorbelegen, aktuell default false
       bringService.value = false
       loadPreis()
     }
   },
 )
 
-// falls initialKmPaket sich extern ändert (selten)
 watch(
   () => props.initialKmPaket,
   (val) => {
@@ -116,7 +115,6 @@ const mwstProzent = computed(() =>
 const onCancel = () => emit('close')
 const onPay = () =>
   emit('pay', {
-    preis: preis.value,
     kmPaket: freieKmPaket.value,
     bringService: bringService.value,
   })
@@ -149,13 +147,11 @@ const onPay = () =>
           </small>
         </div>
 
-        <!-- Status -->
         <div v-if="loading" class="msg info">Preis wird berechnet…</div>
         <div v-else-if="error" class="msg error">
           Fehler bei der Preisberechnung: {{ errorMessage }}
         </div>
 
-        <!-- Ergebnis: komplette Liste -->
         <div v-else-if="preis" class="price-result">
           <div class="summary-row">
             <span>Miettage</span>
@@ -196,11 +192,19 @@ const onPay = () =>
           </div>
         </div>
 
-        <!-- Aktionen -->
+        <p v-if="visible && !canPay" class="msg error">
+          Die Reservierung ist abgelaufen. Bitte schließe dieses Fenster und wähle den Zeitraum neu.
+        </p>
+
         <div class="modal-actions">
           <button type="button" class="btn ghost" @click="onCancel">Abbrechen</button>
-          <button type="button" class="btn primary" :disabled="!preis || loading" @click="onPay">
-            Jetzt bezahlen (TEST)
+          <button
+            type="button"
+            class="btn primary"
+            :disabled="!preis || loading || !canPay"
+            @click="onPay"
+          >
+            Jetzt bezahlen
           </button>
         </div>
       </div>

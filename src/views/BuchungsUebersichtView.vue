@@ -103,7 +103,6 @@ const getVehicle = (fahrzeugId) => vehiclesMap.value[fahrzeugId] || null
 const vehicleTitle = (b) => {
   const v = getVehicle(b.fahrzeugId)
   if (!v) {
-    // Fallback, falls Fahrzeug nicht geladen werden konnte
     return `Fahrzeug #${b.fahrzeugId}`
   }
 
@@ -122,8 +121,7 @@ const sortedBookings = computed(() => {
   return [...bookings.value].sort((a, b) => {
     const da = new Date(a.startDatum).getTime()
     const db = new Date(b.startDatum).getTime()
-    // neu zu alt
-    return db - da
+    return db - da // neu zu alt
   })
 })
 
@@ -147,6 +145,9 @@ const groupedBookings = computed(() => {
   return Array.from(map.values())
 })
 
+// ===============================
+// Admin-Storno (hattest du schon)
+// ===============================
 async function onAdminCancel(buchung) {
   const confirmed = window.confirm(
     `Möchtest du die Buchung ${buchung.buchungsNummer || '#' + buchung.id} wirklich freigeben (stornieren)?`,
@@ -157,10 +158,9 @@ async function onAdminCancel(buchung) {
     cancelLoadingId.value = buchung.id
     const updated = await bookingService.cancelBooking(buchung.id)
 
-    // Booking in der Liste ersetzen
     bookings.value = bookings.value.map((b) => (b.id === updated.id ? updated : b))
   } catch (e) {
-    console.error('[Buchungsübersicht] Fehler beim Stornieren:', e)
+    console.error('[Buchungsübersicht] Fehler beim Stornieren (Admin):', e)
     window.alert(
       e?.response?.data?.message ||
         'Die Buchung konnte nicht storniert werden. Bitte versuche es später erneut.',
@@ -170,9 +170,39 @@ async function onAdminCancel(buchung) {
   }
 }
 
-// Für Kunden vorerst nur Info – noch ohne echte Stornologik
-function onCustomerCancelInfo() {
-  window.alert('Die Stornierungsfunktion für Kunden wird in Kürze freigeschaltet.')
+// ===============================
+// Kunden-Storno (neu)
+// ===============================
+async function onCustomerCancel(buchung) {
+  if (buchung.status === 'STORNIERT') {
+    window.alert('Diese Buchung wurde bereits storniert.')
+    return
+  }
+
+  const confirmed = window.confirm(
+    `Möchtest du die Buchung ${buchung.buchungsNummer || '#' + buchung.id} wirklich stornieren?`,
+  )
+  if (!confirmed) return
+
+  try {
+    cancelLoadingId.value = buchung.id
+    const updated = await bookingService.cancelMyBooking(buchung.id)
+
+    // Aktualisierte Buchung in Liste einsetzen
+    bookings.value = bookings.value.map((b) => (b.id === updated.id ? updated : b))
+
+    window.alert(
+      'Deine Buchung wurde storniert. Eine eventuelle Rückerstattung wird automatisch über Stripe abgewickelt.',
+    )
+  } catch (e) {
+    console.error('[Buchungsübersicht] Fehler beim Stornieren (Kunde):', e)
+    window.alert(
+      e?.response?.data?.message ||
+        'Die Buchung konnte nicht storniert werden. Bitte versuche es später erneut.',
+    )
+  } finally {
+    cancelLoadingId.value = null
+  }
 }
 
 // ===============================
@@ -183,25 +213,22 @@ onMounted(async () => {
     loading.value = true
     if (isAdminView.value) {
       const userId = userIdParam.value
-      console.log('[Buchungsübersicht] Admin-View für User-ID HALLO:', userId)
+      console.log('[Buchungsübersicht] Admin-View für User-ID:', userId)
       bookings.value = await bookingService.getBookingsByUserAdmin(userId)
     } else {
       console.log('[Buchungsübersicht] Kunden-View – Auth-Store:', auth)
 
-      // optionaler Check – Route sollte sowieso requiresAuth haben
       if (!auth.user && !auth.currentUser) {
         bookings.value = []
         error.value = 'Bitte melde dich an, um deine Buchungen zu sehen.'
         return
       }
 
-      // 🔥 kein userId mehr übergeben, Backend nimmt User aus JWT
       bookings.value = await bookingService.getMyBookings()
     }
 
     console.log('[Buchungsübersicht] Buchungen geladen:', bookings.value)
 
-    // Jetzt Fahrzeuge zu den Buchungen laden
     await loadVehiclesForBookings(bookings.value)
     console.log('[Buchungsübersicht] VehiclesMap:', vehiclesMap.value)
   } catch (e) {
@@ -325,6 +352,7 @@ onMounted(async () => {
                 </div>
 
                 <!-- Aktionen: immer unter den Sektionen, über gesamte Breite -->
+                <!-- Aktionen: immer unter den Sektionen, über gesamte Breite -->
                 <div v-if="b.status !== 'STORNIERT'" class="booking-actions">
                   <!-- Admin-Ansicht: Buchung freigeben -->
                   <button
@@ -339,14 +367,15 @@ onMounted(async () => {
                     }}
                   </button>
 
-                  <!-- Kunden-Ansicht: Button vorbereitet, aktuell nur Hinweis -->
+                  <!-- Kunden-Ansicht: echte Stornierung -->
                   <button
                     v-else
                     class="action-btn ghost"
                     type="button"
-                    @click="onCustomerCancelInfo"
+                    :disabled="cancelLoadingId === b.id"
+                    @click="onCustomerCancel(b)"
                   >
-                    Buchung stornieren
+                    {{ cancelLoadingId === b.id ? 'Storniere Buchung…' : 'Buchung stornieren' }}
                   </button>
                 </div>
               </div>
