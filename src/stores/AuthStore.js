@@ -68,6 +68,36 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    async verifyPassword(password) {
+      try {
+        const res = await api.post('/auth/verify-password', { password })
+        return res.data?.success === true
+      } catch (e) {
+        return false
+      }
+    },
+
+    async updateProfile(payload) {
+      try {
+        // FIXME: Pfad an dein Backend anpassen!
+        // z.B. /api/users/me oder /api/account/me
+        const res = await api.put('/api/users/me', payload)
+
+        // User im Store & localStorage aktualisieren
+        this.user = {
+          ...this.user,
+          ...res.data,
+        }
+
+        localStorage.setItem('user', JSON.stringify(this.user))
+
+        return { success: true }
+      } catch (err) {
+        console.error('Update profile failed', err)
+        const msg = err.response?.data?.message || 'Aktualisierung deiner Daten ist fehlgeschlagen.'
+        return { success: false, error: msg }
+      }
+    },
     // ---------- LOGOUT ----------
     logout() {
       this.token = null

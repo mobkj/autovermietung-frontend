@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { bookingService } from '@/api/bookingService'
 import { useAuthStore } from '@/stores/AuthStore'
 import { vehicleService } from '@/api/vehicleService'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, onBeforeUnmount } from 'vue'
 import VehicleDetailsCard from '@/components/vehicles/VehicleDetailsCard.vue'
 
 const route = useRoute()
@@ -114,6 +114,22 @@ const vehicleTitle = (b) => {
   return base || `Fahrzeug #${b.fahrzeugId}`
 }
 
+const rentalDays = (b) => {
+  if (!b.startDatum || !b.endDatum) return null
+
+  const start = new Date(b.startDatum)
+  const end = new Date(b.endDatum)
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null
+
+  // Differenz in Millisekunden
+  const diffMs = end.getTime() - start.getTime()
+
+  // Auf volle Tage runden; mindestens 1 Tag
+  const days = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)))
+
+  return days
+}
 // ===============================
 // Buchungen sortieren + nach Monat gruppieren
 // ===============================
@@ -205,10 +221,18 @@ async function onCustomerCancel(buchung) {
   }
 }
 
+const openInvoiceWindow = (buchung) => {
+  // TODO: Später echte URL zur Rechnung setzen, z. B.:
+  // const url = `/rechnung/${buchung.id}` oder aus Backend geliefert
+  // window.open(url, '_blank')
+
+  window.alert('[Rechnung] Placeholder geöffnet für Buchung:', buchung.id)
+}
+
 // ===============================
 // Load
 // ===============================
-onMounted(async () => {
+async function loadAll() {
   try {
     loading.value = true
     if (isAdminView.value) {
@@ -238,6 +262,21 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+// Event-Handler fürs Zurückkommen aus Stripe / Browser-Back
+function handlePageShow() {
+  // einfach immer neu laden – reicht in deinem Fall völlig
+  loadAll()
+}
+
+onMounted(() => {
+  loadAll()
+  window.addEventListener('pageshow', handlePageShow)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('pageshow', handlePageShow)
 })
 </script>
 
@@ -345,16 +384,33 @@ onMounted(async () => {
                     </span>
                   </div>
 
+                  <!-- Neue Zeile: Mietdauer -->
+                  <div class="section-line">
+                    <span class="tag">Mietdauer</span>
+                    <span class="value">
+                      {{ rentalDays(b) }} Tag{{ rentalDays(b) === 1 ? '' : 'e' }}
+                    </span>
+                  </div>
+
                   <div class="section-line" v-if="b.gesamtPreis != null">
-                    <span class="tag">Gesamtpreis (netto)</span>
+                    <span class="tag">Gesamtpreis</span>
                     <span class="value">{{ formatCurrency(b.gesamtPreis) }}</span>
                   </div>
                 </div>
 
-                <!-- Aktionen: immer unter den Sektionen, über gesamte Breite -->
-                <!-- Aktionen: immer unter den Sektionen, über gesamte Breite -->
+                <!-- Aktionen -->
                 <div v-if="b.status !== 'STORNIERT'" class="booking-actions">
                   <!-- Admin-Ansicht: Buchung freigeben -->
+
+                  <button
+                    v-if="b.status === 'BEZAHLT' && !isAdminUser"
+                    class="action-btn invoice"
+                    type="button"
+                    @click="openInvoiceWindow(b)"
+                  >
+                    📄 Rechnung öffnen
+                  </button>
+
                   <button
                     v-if="isAdminUser"
                     class="action-btn danger"
@@ -383,6 +439,10 @@ onMounted(async () => {
           </div>
         </div>
       </section>
+
+      <router-link to="/meinprofil" class="btn-back-to-profile">
+        ← Zurück zu meinem Profil
+      </router-link>
     </main>
   </div>
 </template>
@@ -589,13 +649,19 @@ onMounted(async () => {
 }
 
 .action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 7px 14px;
   font-size: 12px;
   font-weight: 700;
+
   border: 1px solid #cbd5e1;
-  background: #ffffff;
+  background: #f8fafc;
   color: #0f172a;
+
   cursor: pointer;
   transition:
     background 0.18s ease,
@@ -605,8 +671,9 @@ onMounted(async () => {
 }
 
 .action-btn:hover:enabled {
-  transform: translateY(-1px);
+  background: #e2e8f0;
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.15);
+  transform: translateY(-1px);
 }
 
 .action-btn:disabled {
@@ -615,7 +682,18 @@ onMounted(async () => {
   box-shadow: none;
 }
 
-/* Roter Admin-Button */
+/* 💙 Primär – z.B. "Rechnung öffnen" */
+.action-btn.invoice {
+  background: #06457f;
+  color: #ffffff;
+  border-color: #06457f;
+}
+
+.action-btn.invoice:hover:enabled {
+  background: #0460b0;
+}
+
+/* 🔴 Gefahr – Admin "Buchung freigeben / stornieren" */
 .action-btn.danger {
   background: #fee2e2;
   border-color: #fecaca;
@@ -626,14 +704,14 @@ onMounted(async () => {
   background: #fecaca;
 }
 
-/* „Ghost“-Button für Kunden */
+/* 🕊 Ghost – dezenter Kunden-Storno-Button */
 .action-btn.ghost {
   background: transparent;
   border-color: transparent;
   color: #0f172a;
 }
 
-.action-btn.ghost:hover {
+.action-btn.ghost:hover:enabled {
   background: #e2e8f0;
 }
 
@@ -684,5 +762,26 @@ onMounted(async () => {
   .value {
     text-align: left;
   }
+}
+
+.btn-back-to-profile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.btn-back-to-profile:hover {
+  background: #e2e8f0;
 }
 </style>

@@ -242,6 +242,10 @@ async function saveEdit() {
         <p class="sub">Alle Fahrzeuge in deiner Flotte – bearbeiten & verwalten.</p>
       </header>
 
+      <router-link to="/meinprofil" class="btn-back-to-profile">
+        ← Zurück zu meinem Profil
+      </router-link>
+
       <div v-if="loading" class="grid">
         <div v-for="i in 3" :key="i" class="skeleton"></div>
       </div>
@@ -543,6 +547,28 @@ async function saveEdit() {
   color: #ef4444;
   font-weight: 700;
   text-align: center;
+}
+
+.btn-back-to-profile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24px;
+  margin-bottom: 20px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.btn-back-to-profile:hover {
+  background: #e2e8f0;
 }
 
 @media (max-width: 960px) {

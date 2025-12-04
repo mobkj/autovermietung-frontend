@@ -75,6 +75,11 @@ const router = createRouter({
       component: () => import('@/views/BuchungsUebersichtView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/checkout-cancelled',
+      name: 'checkout-cancelled',
+      component: () => import('@/views/public/CheckoutCancelledView.vue'),
+    },
 
     // ======================
     // ADMIN

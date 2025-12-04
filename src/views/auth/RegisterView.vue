@@ -19,11 +19,22 @@ const street = ref('')
 const houseNumber = ref('')
 const postalCode = ref('')
 const city = ref('')
-const country = ref('')
+const country = ref('DE') // sinnvolle Default
 const birthDate = ref('')
 const driverLicenseNumber = ref('')
 
 const birthError = ref('')
+
+const errorMessage = ref('')
+const isSubmitting = ref(false)
+
+const auth = useAuthStore()
+
+// === HELPERS =====================================================
+
+const trim = (v) => (v ?? '').trim()
+
+// === GEBURTSDATUM ================================================
 
 function formatBirthDate() {
   let v = birthDate.value.replace(/\D/g, '') // nur Zahlen behalten
@@ -36,12 +47,19 @@ function formatBirthDate() {
 }
 
 function validateBirthDate() {
-  if (birthDate.value.length < 10) {
+  const raw = trim(birthDate.value)
+
+  if (!raw) {
+    birthError.value = 'Geburtsdatum ist erforderlich'
+    return
+  }
+
+  if (raw.length < 10) {
     birthError.value = 'Bitte vollständiges Datum eingeben'
     return
   }
 
-  const [day, month, year] = birthDate.value.split('.').map(Number)
+  const [day, month, year] = raw.split('.').map(Number)
 
   if (!day || !month || !year || month > 12 || day > 31) {
     birthError.value = 'Ungültiges Datum'
@@ -50,6 +68,13 @@ function validateBirthDate() {
 
   const dob = new Date(year, month - 1, day)
   const today = new Date()
+
+  // Falls JS das Datum „korrigiert“ (z.B. 32.13.2020 → Februar usw.)
+  if (dob.getFullYear() !== year || dob.getMonth() !== month - 1 || dob.getDate() !== day) {
+    birthError.value = 'Ungültiges Datum'
+    return
+  }
+
   const age =
     today.getFullYear() -
     dob.getFullYear() -
@@ -62,20 +87,16 @@ function validateBirthDate() {
   }
 }
 
-const isBirthValid = computed(() => birthError.value === '')
+// valide nur, wenn 10 Zeichen + kein Fehler
+const isBirthValid = computed(() => trim(birthDate.value).length === 10 && birthError.value === '')
 
-const errorMessage = ref('')
-const isSubmitting = ref(false)
-
-const auth = useAuthStore()
-
-// --- VALIDIERUNG ---
+// === EMAIL / PASSWORT ============================================
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-const isEmailValid = computed(() => emailRegex.test(email.value))
+const isEmailValid = computed(() => emailRegex.test(trim(email.value)))
 const emailError = computed(() => {
-  if (!email.value) return 'E-Mail ist erforderlich'
+  if (!trim(email.value)) return 'E-Mail ist erforderlich'
   if (!isEmailValid.value) return 'Bitte eine gültige E-Mail-Adresse eingeben'
   return ''
 })
@@ -95,22 +116,37 @@ const passwordsMatch = computed(
   () => confirmPassword.value.length > 0 && confirmPassword.value === password.value,
 )
 
-// Step-Validierungen
-const step1Valid = computed(
-  () =>
-    firstName.value &&
-    lastName.value &&
+// === TELEFON / PLZ VALIDIERUNG ===================================
+
+const phoneRegex = /^\+?[0-9 ()/-]{6,20}$/
+const isPhoneValid = computed(() => phoneRegex.test(trim(phone.value)))
+
+const postalCodeRegex = /^\d{4,5}$/
+const isPostalCodeValid = computed(() => postalCodeRegex.test(trim(postalCode.value)))
+
+// === STEP-VALIDIERUNGEN ==========================================
+
+const step1Valid = computed(() => {
+  return (
+    !!trim(firstName.value) &&
+    !!trim(lastName.value) &&
     isEmailValid.value &&
     allPwRulesOk.value &&
     passwordsMatch.value &&
     isBirthValid.value &&
-    driverLicenseNumber.value,
-)
+    !!trim(driverLicenseNumber.value)
+  )
+})
 
-const step2Valid = computed(() => !!phone.value)
+const step2Valid = computed(() => isPhoneValid.value)
 
 const step3Valid = computed(
-  () => street.value && houseNumber.value && postalCode.value && city.value && country.value,
+  () =>
+    !!trim(street.value) &&
+    !!trim(houseNumber.value) &&
+    isPostalCodeValid.value &&
+    !!trim(city.value) &&
+    !!trim(country.value),
 )
 
 const currentStepValid = computed(() => {
@@ -131,11 +167,18 @@ const isFormValid = computed(
     passwordsMatch.value,
 )
 
-// Navigation
+// === NAVIGATION ===================================================
+
 const goNext = () => {
+  errorMessage.value = ''
+
+  // explizit validieren, falls User das Feld nie berührt hat
+  if (currentStep.value === 1) {
+    validateBirthDate()
+  }
+
   if (currentStep.value < 3 && currentStepValid.value) {
     currentStep.value += 1
-    errorMessage.value = ''
   } else if (!currentStepValid.value) {
     errorMessage.value = 'Bitte alle Felder in diesem Schritt korrekt ausfüllen.'
   }
@@ -148,8 +191,13 @@ const goBack = () => {
   }
 }
 
+// === SUBMIT =======================================================
+
 const submit = async () => {
   errorMessage.value = ''
+
+  // sicherstellen, dass Geburtsdatum geprüft ist
+  validateBirthDate()
 
   if (!isFormValid.value) {
     errorMessage.value = 'Bitte alle Felder korrekt ausfüllen.'
@@ -160,24 +208,27 @@ const submit = async () => {
     isSubmitting.value = true
 
     const res = await auth.register({
-      firstName: firstName.value,
-      lastName: lastName.value,
-      email: email.value,
+      firstName: trim(firstName.value),
+      lastName: trim(lastName.value),
+      email: trim(email.value),
       password: password.value,
 
-      phone: phone.value,
-      street: street.value,
-      houseNumber: houseNumber.value,
-      postalCode: postalCode.value,
-      city: city.value,
-      country: country.value,
-      birthDate: birthDate.value,
-      driverLicenseNumber: driverLicenseNumber.value,
-      companyName: companyName.value,
+      phone: trim(phone.value),
+      street: trim(street.value),
+      houseNumber: trim(houseNumber.value),
+      postalCode: trim(postalCode.value),
+      city: trim(city.value),
+      country: trim(country.value),
+      birthDate: trim(birthDate.value),
+      driverLicenseNumber: trim(driverLicenseNumber.value),
+      companyName: trim(companyName.value),
     })
 
     if (res?.error) {
       errorMessage.value = res.error
+    } else {
+      // optional: nach erfolgreicher Registrierung redirecten
+      // router.push('/profil') o.ä.
     }
   } finally {
     isSubmitting.value = false
@@ -315,21 +366,11 @@ const submit = async () => {
               }}
             </small>
           </div>
-
           <div class="input-group">
             <label>Firmenname (optional)</label>
-            <input v-model="companyName" type="input" />
-            <small
-              v-if="confirmPassword"
-              class="hint"
-              :class="{ error: !passwordsMatch, ok: passwordsMatch }"
-            >
-              {{
-                passwordsMatch
-                  ? 'Passwörter stimmen überein ✔'
-                  : 'Passwörter stimmen nicht überein'
-              }}
-            </small>
+            <input v-model="companyName" type="text" />
+            <!-- Hinweis lieber komplett entfernen oder etwas wie: -->
+            <!-- <small class="hint">Falls abweichend von deinem Namen.</small> -->
           </div>
 
           <div class="input-row">
@@ -362,13 +403,30 @@ const submit = async () => {
         </div>
 
         <!-- STEP 2 -->
+        <!-- Telefon -->
+        <!-- STEP 2 -->
         <div v-if="currentStep === 2" class="step-content">
           <div class="input-group">
             <label>Telefonnummer</label>
-            <input v-model="phone" :class="{ 'input-error': !phone }" required />
+            <input
+              v-model="phone"
+              :class="{
+                'input-error': phone && !isPhoneValid,
+                'input-valid': phone && isPhoneValid,
+              }"
+              required
+            />
+            <small v-if="phone" class="hint" :class="{ error: !isPhoneValid, ok: isPhoneValid }">
+              {{
+                isPhoneValid
+                  ? 'Telefonnummer sieht gut aus ✔'
+                  : 'Bitte eine gültige Telefonnummer eingeben'
+              }}
+            </small>
           </div>
         </div>
 
+        <!-- STEP 3 -->
         <!-- STEP 3 -->
         <div v-if="currentStep === 3" class="step-content">
           <div class="input-row">
@@ -384,11 +442,27 @@ const submit = async () => {
           </div>
 
           <div class="input-row">
+            <!-- PLZ -->
             <div class="input-group">
               <label>PLZ</label>
-              <input v-model="postalCode" :class="{ 'input-error': !postalCode }" required />
+              <input
+                v-model="postalCode"
+                :class="{
+                  'input-error': postalCode && !isPostalCodeValid,
+                  'input-valid': postalCode && isPostalCodeValid,
+                }"
+                required
+              />
+              <small
+                v-if="postalCode"
+                class="hint"
+                :class="{ error: !isPostalCodeValid, ok: isPostalCodeValid }"
+              >
+                {{ isPostalCodeValid ? 'PLZ ist gültig ✔' : 'Bitte eine gültige PLZ eingeben' }}
+              </small>
             </div>
 
+            <!-- STADT -->
             <div class="input-group">
               <label>Stadt</label>
               <input v-model="city" :class="{ 'input-error': !city }" required />

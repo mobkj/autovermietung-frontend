@@ -80,6 +80,9 @@ const goToBookings = (userId) => {
         <span class="count"> {{ filteredUsers.length }} / {{ users.length }} Kunden </span>
         <span v-if="loading" class="loading">Lade Daten…</span>
       </div>
+      <router-link to="/meinprofil" class="btn-back-to-profile">
+        ← Zurück zu meinem Profil
+      </router-link>
 
       <!-- TABLE -->
       <div class="table-scroll">
@@ -403,5 +406,27 @@ const goToBookings = (userId) => {
   .search-box {
     min-width: 100%;
   }
+}
+
+.btn-back-to-profile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24px;
+  margin-bottom: 20px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.btn-back-to-profile:hover {
+  background: #e2e8f0;
 }
 </style>

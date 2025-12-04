@@ -1,12 +1,8 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { preisBerechnungService } from '@/api/preisBerechnungService'
 
 const props = defineProps({
-  visible: {
-    type: Boolean,
-    required: true,
-  },
   buchungId: {
     type: Number,
     required: true,
@@ -17,13 +13,13 @@ const props = defineProps({
   },
   canPay: {
     type: Boolean,
-    default: true,
+    default: true, // kommt von außen (Reservation noch aktiv?)
   },
 })
 
-const emit = defineEmits(['close', 'price-loaded', 'pay'])
+const emit = defineEmits(['price-loaded', 'pay', 'close'])
 
-// Auswahl im Modal
+// Auswahl im Panel
 const freieKmPaket = ref(props.initialKmPaket)
 const bringService = ref(false)
 
@@ -36,7 +32,11 @@ const errorMessage = computed(
   () => error.value?.response?.data?.message || error.value?.message || 'Unbekannter Fehler',
 )
 
-// Preis vom Backend laden
+const onCancel = () => {
+  emit('close')
+}
+
+// 🔥 Preis IMMER vom Backend holen – hier wird NICHT gerechnet
 const loadPreis = async () => {
   if (!props.buchungId) return
 
@@ -50,6 +50,7 @@ const loadPreis = async () => {
       bringService.value,
     )
     preis.value = data
+    console.log('[PreisBox] Preis vom Backend:', data)
     emit('price-loaded', data)
   } catch (e) {
     console.error('[Preis] Fehler bei Preisberechnung:', e)
@@ -60,42 +61,42 @@ const loadPreis = async () => {
   }
 }
 
+// Km-Paket geändert
 watch(
   () => freieKmPaket.value,
   () => {
-    if (!props.visible) return
     loadPreis()
   },
 )
 
+// Bringservice geändert
 watch(
   () => bringService.value,
   () => {
-    if (!props.visible) return
     loadPreis()
   },
 )
 
-watch(
-  () => props.visible,
-  (val) => {
-    if (val) {
-      freieKmPaket.value = props.initialKmPaket ?? 150
-      bringService.value = false
-      loadPreis()
-    }
-  },
-)
-
+// falls sich initialKmPaket ändert (theoretisch)
 watch(
   () => props.initialKmPaket,
   (val) => {
     if (val != null) {
       freieKmPaket.value = val
-      if (props.visible) loadPreis()
+      loadPreis()
     }
   },
 )
+
+// Beim Mounten direkt Preis holen
+onMounted(() => {
+  freieKmPaket.value = props.initialKmPaket ?? 150
+  bringService.value = false
+
+  if (props.buchungId) {
+    loadPreis()
+  }
+})
 
 const formatCurrency = (val) => {
   if (val == null) return '–'
@@ -112,7 +113,6 @@ const mwstProzent = computed(() =>
   preis.value?.mwstSatz != null ? Math.round(Number(preis.value.mwstSatz) * 100) : 19,
 )
 
-const onCancel = () => emit('close')
 const onPay = () =>
   emit('pay', {
     kmPaket: freieKmPaket.value,
@@ -121,135 +121,143 @@ const onPay = () =>
 </script>
 
 <template>
-  <teleport to="body">
-    <div v-if="visible" class="modal-backdrop">
-      <div class="modal">
-        <h3 class="modal-title">Preisübersicht &amp; Zahlung</h3>
+  <div class="price-box">
+    <h3 class="price-title">Preisübersicht &amp; Zahlung</h3>
+    <p class="price-sub">
+      Hier siehst du den berechneten Mietpreis für deine Reservierung. Abschließend kannst du die
+      Zahlung über Stripe durchführen.
+    </p>
 
-        <!-- Km-Paket Auswahl -->
-        <div class="field">
-          <label for="kmPaket">Kilometerpaket für den Mietzeitraum</label>
-          <select id="kmPaket" v-model.number="freieKmPaket">
-            <option :value="150">150 km (inklusive)</option>
-            <option :value="300">300 km</option>
-            <option :value="500">500 km</option>
-          </select>
-        </div>
+    <!-- Km-Paket Auswahl -->
+    <div class="field">
+      <label for="kmPaket">Kilometerpaket für den Mietzeitraum</label>
+      <select id="kmPaket" v-model.number="freieKmPaket">
+        <option :value="150">150 km (inklusive)</option>
+        <option :value="300">300 km</option>
+        <option :value="500">500 km</option>
+      </select>
+    </div>
 
-        <!-- Bringservice Checkbox -->
-        <div class="field field-checkbox">
-          <label class="checkbox-label">
-            <input type="checkbox" v-model="bringService" />
-            <span>Bringservice gewünscht (Fahrzeug wird geliefert)</span>
-          </label>
-          <small class="hint">
-            Der Aufpreis für den Bringservice ist in der Berechnung unten bereits berücksichtigt.
-          </small>
-        </div>
+    <!-- Bringservice Checkbox -->
+    <div class="field field-checkbox">
+      <label class="checkbox-label">
+        <input type="checkbox" v-model="bringService" />
+        <span>Bringservice gewünscht (Fahrzeug wird geliefert)</span>
+      </label>
+      <small class="hint">
+        Der Aufpreis für den Bringservice ist in der Berechnung unten bereits berücksichtigt.
+      </small>
+    </div>
 
-        <div v-if="loading" class="msg info">Preis wird berechnet…</div>
-        <div v-else-if="error" class="msg error">
-          Fehler bei der Preisberechnung: {{ errorMessage }}
-        </div>
+    <div v-if="loading" class="msg info">Preis wird berechnet…</div>
+    <div v-else-if="error" class="msg error">
+      Fehler bei der Preisberechnung: {{ errorMessage }}
+    </div>
 
-        <div v-else-if="preis" class="price-result">
-          <div class="summary-row">
-            <span>Miettage</span>
-            <strong>{{ preis.tage }} Tag(e)</strong>
-          </div>
+    <div v-else-if="preis" class="price-result">
+      <div class="summary-row">
+        <span>Miettage</span>
+        <strong>{{ preis.tage }} Tag(e)</strong>
+      </div>
 
-          <div class="summary-row">
-            <span>Km-Paket (für den Zeitraum)</span>
-            <strong>{{ freieKmPaket }} km</strong>
-          </div>
+      <div class="summary-row">
+        <span>Km-Paket (für den Zeitraum)</span>
+        <strong>{{ freieKmPaket }} km</strong>
+      </div>
 
-          <h4>Netto</h4>
-          <div class="summary-row">
-            <span>Fahrzeugmiete</span>
-            <span>{{ formatCurrency(preis.mietpreisNetto) }}</span>
-          </div>
-          <div class="summary-row">
-            <span>Kilometerpaket</span>
-            <span>{{ formatCurrency(preis.kmPaketAufpreisNetto) }}</span>
-          </div>
-          <div class="summary-row">
-            <span>Bringservice</span>
-            <span>{{ formatCurrency(preis.bringServiceNetto) }}</span>
-          </div>
-          <div class="summary-row total">
-            <span>Gesamt Netto</span>
-            <strong>{{ formatCurrency(preis.gesamtNetto) }}</strong>
-          </div>
+      <h4>Netto</h4>
+      <div class="summary-row">
+        <span>Fahrzeugmiete</span>
+        <span>{{ formatCurrency(preis.mietpreisNetto) }}</span>
+      </div>
+      <div class="summary-row">
+        <span>Kilometerpaket</span>
+        <span>{{ formatCurrency(preis.kmPaketAufpreisNetto) }}</span>
+      </div>
+      <div class="summary-row">
+        <span>Bringservice</span>
+        <span>{{ formatCurrency(preis.bringServiceNetto) }}</span>
+      </div>
+      <div class="summary-row total">
+        <span>Gesamt Netto</span>
+        <strong>{{ formatCurrency(preis.gesamtNetto) }}</strong>
+      </div>
 
-          <h4>Brutto</h4>
-          <div class="summary-row">
-            <span>MwSt ({{ mwstProzent }} %)</span>
-            <span>{{ formatCurrency(preis.mwstBetrag) }}</span>
-          </div>
-          <div class="summary-row total big">
-            <span>Gesamt (Brutto)</span>
-            <strong>{{ formatCurrency(preis.gesamtBrutto) }}</strong>
-          </div>
-        </div>
-
-        <p v-if="visible && !canPay" class="msg error">
-          Die Reservierung ist abgelaufen. Bitte schließe dieses Fenster und wähle den Zeitraum neu.
-        </p>
-
-        <div class="modal-actions">
-          <button type="button" class="btn ghost" @click="onCancel">Abbrechen</button>
-          <button
-            type="button"
-            class="btn primary"
-            :disabled="!preis || loading || !canPay"
-            @click="onPay"
-          >
-            Jetzt bezahlen
-          </button>
-        </div>
+      <h4>Brutto</h4>
+      <div class="summary-row">
+        <span>MwSt ({{ mwstProzent }} %)</span>
+        <span>{{ formatCurrency(preis.mwstBetrag) }}</span>
+      </div>
+      <div class="summary-row total big">
+        <span>Gesamt (Brutto)</span>
+        <strong>{{ formatCurrency(preis.gesamtBrutto) }}</strong>
       </div>
     </div>
-  </teleport>
+
+    <p v-if="!canPay" class="msg error">
+      Die Reservierung ist abgelaufen. Bitte wähle den Zeitraum neu, um eine neue Buchung zu
+      starten.
+    </p>
+
+    <div class="price-actions">
+      <button type="button" class="btn ghost" @click="onCancel">Abbrechen</button>
+
+      <button
+        type="button"
+        class="btn primary"
+        :disabled="!preis || loading || !canPay"
+        @click="onPay"
+      >
+        Jetzt bezahlen
+      </button>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 40;
-}
-
-.modal {
-  width: 100%;
-  max-width: 480px;
+.price-box {
+  margin-top: 16px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
   background: #ffffff;
-  border-radius: 18px;
-  padding: 20px 22px;
-  box-shadow:
-    0 18px 45px rgba(15, 23, 42, 0.18),
-    0 0 0 1px rgba(148, 163, 184, 0.15);
+  padding: 16px 16px 14px;
+  box-shadow: var(--mazari-shadow-subtle);
 }
 
-.modal-title {
-  font-size: 18px;
+.price-title {
+  font-size: 16px;
   font-weight: 800;
-  margin-bottom: 14px;
+  margin: 0 0 4px;
   color: #0f172a;
+}
+.price-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.btn.ghost {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.price-sub {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #64748b;
 }
 
 .field {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .field label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #475569;
 }
@@ -257,8 +265,9 @@ const onPay = () =>
 .field select {
   border-radius: 999px;
   border: 1px solid #cbd5e1;
-  padding: 8px 14px;
+  padding: 7px 12px;
   font-size: 14px;
+  background: #f8fafc;
 }
 
 .field-checkbox .checkbox-label {
@@ -281,7 +290,7 @@ const onPay = () =>
 
 .msg {
   font-size: 13px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .msg.info {
   color: #0f172a;
@@ -292,12 +301,12 @@ const onPay = () =>
 }
 
 .price-result {
-  margin-top: 6px;
-  margin-bottom: 12px;
+  margin-top: 4px;
+  margin-bottom: 10px;
 }
 
 .price-result h4 {
-  margin-top: 10px;
+  margin-top: 8px;
   margin-bottom: 4px;
   font-size: 13px;
   font-weight: 800;
@@ -308,7 +317,7 @@ const onPay = () =>
   display: flex;
   justify-content: space-between;
   font-size: 13px;
-  padding: 3px 0;
+  padding: 2px 0;
 }
 .summary-row span:first-child {
   color: #64748b;
@@ -316,37 +325,33 @@ const onPay = () =>
 .summary-row.total {
   border-top: 1px dashed #e2e8f0;
   margin-top: 4px;
-  padding-top: 6px;
+  padding-top: 5px;
 }
 .summary-row.total.big strong {
   font-size: 15px;
 }
 
-.modal-actions {
+.price-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .btn {
   border-radius: 999px;
-  padding: 8px 16px;
+  padding: 7px 16px;
   font-size: 13px;
   font-weight: 700;
   border: 1px solid transparent;
   cursor: pointer;
 }
-.btn.ghost {
-  border-color: #cbd5e1;
-  background: #ffffff;
-  color: #0f172a;
-}
+
 .btn.primary {
   border-color: #0f63ff;
   background: #0f63ff;
   color: #ffffff;
 }
+
 .btn:disabled {
   opacity: 0.6;
   cursor: default;

@@ -4,12 +4,14 @@ import { bookingService } from '@/api/bookingService'
 import { useAuthStore } from '@/stores/AuthStore'
 import BookingPriceBox from '@/components/booking/BookingPriceBox.vue'
 import { stripeService } from '@/api/stripeService'
+import { useRoute } from 'vue-router'
 
 const props = defineProps({
   vehicleId: { type: Number, required: false },
   vehicle: { type: Object, required: false },
 })
 
+const route = useRoute()
 const auth = useAuthStore()
 const currentUser = computed(() => auth.user || auth.currentUser || null)
 
@@ -40,9 +42,9 @@ const showPriceModal = ref(false)
 // Buchungen für dieses Fahrzeug -> belegte Tage
 const bookedRanges = ref([])
 
-// === Reservierungs-Timer (5 Minuten vom Backend) ===
+// === Reservierungs-Timer (10 Minuten Hold vom Backend) ===
 const reservationExpiresAt = ref(null) // Date | null
-const reservationRemaining = ref('') // z.B. "04:59"
+const reservationRemaining = ref('') // z.B. "09:58"
 let reservationIntervalId = null
 
 const reservationActive = computed(() => {
@@ -50,21 +52,19 @@ const reservationActive = computed(() => {
   return reservationExpiresAt.value.getTime() > Date.now()
 })
 
-// === Preis-Modal Events ===
+// === Preis-Box Events ===
 const onPriceLoaded = (preisDto) => {
   console.log('[Preis] Preis geladen:', preisDto)
   lastLoadedPrice.value = preisDto
 }
 
 // Stripe-Checkout starten
-const onPricePay = async ({ kmPaket }) => {
+const onPricePay = async ({ kmPaket, bringService }) => {
   if (!createdBooking.value) return
 
-  // Reservierung noch gültig?
   if (!reservationActive.value) {
     bookingError.value =
       'Deine Reservierung ist abgelaufen. Bitte wähle den Zeitraum erneut und starte die Buchung neu.'
-    showPriceModal.value = false
     return
   }
 
@@ -74,12 +74,12 @@ const onPricePay = async ({ kmPaket }) => {
     const res = await stripeService.createCheckoutSession({
       buchungId: createdBooking.value.id,
       freieKmPaket: kmPaket,
+      bringService, // ✅ NEU
     })
 
-    console.log('[Stripe] Checkout-Session Antwort:', res)
-
     if (res.checkoutUrl) {
-      window.open(res.checkoutUrl, '_blank', 'noopener,noreferrer')
+      localStorage.setItem('checkoutReturnPath', route.fullPath)
+      window.location.href = res.checkoutUrl
     } else {
       bookingError.value = 'Konnte die Zahlung nicht starten. Bitte versuche es erneut.'
     }
@@ -153,18 +153,27 @@ function dateKey(d) {
 }
 
 // === BLOCKIERTE TAGE (aus Buchungen) ===
-const blockedDateSet = computed(() => {
-  const set = new Set()
+// === BLOCKIERTE TAGE (aus Buchungen) ===
+// === BLOCKIERTE TAGE (aus Buchungen) mit Status (RESERVIERT / BEZAHLT) ===
+// === BLOCKIERTE TAGE (aus Buchungen) mit Status (RESERVIERT / BEZAHLT) ===
+const blockedDateStatusMap = computed(() => {
+  const map = new Map()
   const now = new Date()
-  const aktiveStatus = ['RESERVIERT', 'BEZAHLT']
 
   for (const b of bookedRanges.value) {
     if (!b.startDatum || !b.endDatum) continue
-    if (!aktiveStatus.includes(b.status)) continue
 
-    // Abgelaufene Reservierung ignorieren
+    let status = b.status
+    if (status !== 'RESERVIERT' && status !== 'BEZAHLT') continue
+
+    // 👉 Admin-Block (userId null) soll direkt "hard" blocken = wie BEZAHLT (rot)
+    if (status === 'RESERVIERT' && (b.userId == null || b.userId === undefined)) {
+      status = 'BEZAHLT'
+    }
+
+    // Abgelaufene Reservierungen ignorieren
     if (
-      b.status === 'RESERVIERT' &&
+      status === 'RESERVIERT' &&
       b.reserviertBis &&
       new Date(b.reserviertBis).getTime() < now.getTime()
     ) {
@@ -175,16 +184,32 @@ const blockedDateSet = computed(() => {
     const end = new Date(b.endDatum)
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) continue
 
-    // Alle Tage im Bereich markieren
     for (let d = new Date(start.getTime()); d <= end; d.setDate(d.getDate() + 1)) {
-      set.add(dateKey(d))
+      const key = dateKey(d)
+      const existing = map.get(key)
+
+      // Wenn schon BEZAHLT da ist, bleibt es BEZAHLT
+      if (existing === 'BEZAHLT') continue
+
+      if (status === 'BEZAHLT') {
+        map.set(key, 'BEZAHLT')
+      } else if (status === 'RESERVIERT' && !existing) {
+        map.set(key, 'RESERVIERT')
+      }
     }
   }
-  return set
+
+  return map
 })
 
+function getBlockedStatus(d) {
+  if (!d) return null
+  return blockedDateStatusMap.value.get(dateKey(d)) || null
+}
+
 function isBlockedDate(d) {
-  return blockedDateSet.value.has(dateKey(d))
+  const status = getBlockedStatus(d)
+  return status === 'RESERVIERT' || status === 'BEZAHLT'
 }
 
 // === MONTH NAVIGATION ===
@@ -219,7 +244,7 @@ const daysGrid = computed(() => {
   const days = []
 
   let weekday = start.getDay()
-  if (weekday === 0) weekday = 7 // Sonntag -> 7
+  if (weekday === 0) weekday = 7
 
   for (let i = 1; i < weekday; i++) {
     days.push({ date: null, isPast: false })
@@ -301,11 +326,20 @@ function updateReservationCountdown() {
   if (diffMs <= 0) {
     reservationRemaining.value = '00:00'
     clearReservationTimer()
-    showPriceModal.value = false
+    reservationExpiresAt.value = null
     bookingError.value =
       'Deine Reservierung ist abgelaufen. Bitte wähle den Zeitraum erneut und starte die Buchung neu.'
+
+    showPriceModal.value = false
+    createdBooking.value = null
+    bookingSuccess.value = ''
+
+    // Kalender aktualisieren, damit orangene Tage verschwinden
+    loadBlockedDates()
+
     return
   }
+
   const totalSec = Math.floor(diffMs / 1000)
   const mins = Math.floor(totalSec / 60)
   const secs = totalSec % 60
@@ -338,10 +372,52 @@ async function loadBlockedDates() {
   try {
     const list = await bookingService.getBookingsByVehicle(vehId)
     console.log('[Booking] Belegte Buchungen für Fahrzeug', vehId, list)
+
+    // 👇 Debug-Ausgabe
+    console.table(
+      list.map((b) => ({
+        id: b.id,
+        status: b.status,
+        userId: b.userId,
+        reserviertBis: b.reserviertBis,
+      })),
+    )
+
     bookedRanges.value = Array.isArray(list) ? list : []
   } catch (e) {
     console.error('[Booking] Fehler beim Laden der belegten Tage:', e)
   }
+}
+
+function restoreActiveReservation() {
+  const user = currentUser.value
+  if (!user) return
+
+  const now = new Date()
+
+  // Eine noch gültige Reservierung für diesen User suchen
+  const active = bookedRanges.value.find((b) => {
+    if (!b) return false
+    if (b.status !== 'RESERVIERT') return false
+    if (b.userId !== user.id) return false
+    if (!b.reserviertBis) return false
+
+    const expiry = new Date(b.reserviertBis)
+    if (Number.isNaN(expiry.getTime())) return false
+
+    return expiry.getTime() > now.getTime()
+  })
+
+  if (!active) return
+
+  // 👉 Reservierung in der UI wiederherstellen
+  createdBooking.value = active
+  showPriceModal.value = true
+  bookingSuccess.value =
+    'Du hast noch eine laufende Reservierung. Unten kannst du den Preis einsehen und die Zahlung abschließen, solange der Countdown läuft.'
+
+  // Countdown wieder starten
+  startReservationTimer(active.reserviertBis)
 }
 
 // === BUCHUNG ABSCHICKEN ===
@@ -352,7 +428,6 @@ async function submitBooking() {
   bookingSuccess.value = ''
   createdBooking.value = null
   lastLoadedPrice.value = null
-  showPriceModal.value = false
   clearReservationTimer()
   reservationExpiresAt.value = null
   reservationRemaining.value = ''
@@ -387,44 +462,57 @@ async function submitBooking() {
       return
     }
 
-    console.log('[Booking] Current user aus Store:', user)
-
-    const payload = {
+    // Gemeinsames Payload
+    const basePayload = {
       fahrzeugId: vehId,
-      userId: user.id ?? null,
       kundeName: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email,
       kundeEmail: user.email ?? '',
       kundePhone: user.phone ?? '',
       startDatum: toIsoLocal(s),
       endDatum: toIsoLocal(e),
-      bringService: false, // TODO: später echte Checkbox aus UI übernehmen
+      bringService: false,
     }
 
-    console.log('[Booking] Sende Payload an Backend:', payload)
+    // ✅ ADMIN-FLOW: interner Block, kein Stripe, keine PriceBox
+    if (isAdmin.value) {
+      const adminPayload = {
+        ...basePayload,
+        // adminBlockieren nutzt userId nicht zwingend, aber kannst du optional mitgeben
+        userId: user.id ?? null,
+      }
+
+      const response = await bookingService.adminBlockBooking(adminPayload)
+      createdBooking.value = response
+
+      bookingSuccess.value =
+        'Du hast dieses Fahrzeug für diesen Zeitraum intern blockiert. Kunden können diesen Zeitraum nicht mehr buchen.'
+      showPriceModal.value = false
+
+      await loadBlockedDates()
+      startDate.value = null
+      endDate.value = null
+      return
+    }
+
+    // ✅ KUNDEN-FLOW: weiche Reservierung + PriceBox + Stripe
+    const payload = {
+      ...basePayload,
+      userId: user.id ?? null,
+    }
 
     const response = await bookingService.createBooking(payload)
-    console.log('[Booking] Antwort vom Backend:', response)
     createdBooking.value = response
 
-    // Reservierungs-Timer aus Backend (5 Minuten Hold)
     if (response.reserviertBis) {
       startReservationTimer(response.reserviertBis)
     }
 
-    if (isAdmin.value) {
-      bookingSuccess.value =
-        'Du hast dieses Fahrzeug erfolgreich reserviert. Die Buchung ist im System hinterlegt.'
-      // Admin: kein Zahlungsmodal
-    } else {
-      bookingSuccess.value =
-        'Deine Buchung wurde erstellt und für 5 Minuten reserviert. Im nächsten Schritt kannst du die Zahlung abschließen.'
-      showPriceModal.value = true
-    }
+    bookingSuccess.value =
+      'Deine Reservierung wurde erstellt und ist für 10 Minuten gültig. Unten kannst du den Preis einsehen und die Zahlung abschließen. Die Buchung gilt erst als bestätigt, wenn die Zahlung erfolgt ist.'
+    showPriceModal.value = true
 
-    // Kalender-Blockierungen neu laden
     await loadBlockedDates()
 
-    // Auswahl zurücksetzen
     startDate.value = null
     endDate.value = null
   } catch (e) {
@@ -436,8 +524,34 @@ async function submitBooking() {
   }
 }
 
-onMounted(() => {
-  loadBlockedDates()
+const onPriceCancel = async () => {
+  if (!createdBooking.value) {
+    showPriceModal.value = false
+    return
+  }
+
+  try {
+    // 👉 Reservierung im Backend komplett löschen
+    await bookingService.cancelReservation(createdBooking.value.id)
+  } catch (e) {
+    console.error('[Booking] Fehler beim Abbrechen der Reservierung:', e)
+  } finally {
+    // Frontend-State aufräumen
+    createdBooking.value = null
+    showPriceModal.value = false
+
+    clearReservationTimer()
+    reservationExpiresAt.value = null
+    reservationRemaining.value = ''
+    bookingSuccess.value = ''
+
+    await loadBlockedDates()
+  }
+}
+
+onMounted(async () => {
+  await loadBlockedDates()
+  restoreActiveReservation()
 })
 
 onUnmounted(() => {
@@ -493,7 +607,8 @@ onUnmounted(() => {
             :class="{
               'is-empty': !day.date,
               'is-past': day.isPast,
-              'is-blocked': day.date && isBlockedDate(day.date),
+              'is-blocked-reserviert': day.date && getBlockedStatus(day.date) === 'RESERVIERT',
+              'is-blocked-bezahlt': day.date && getBlockedStatus(day.date) === 'BEZAHLT',
               'is-start': day.date && startDate && sameDate(day.date, startDate),
               'is-end': day.date && endDate && sameDate(day.date, endDate),
               'is-in-range': day.date && isInRange(day.date),
@@ -507,7 +622,8 @@ onUnmounted(() => {
         <p class="legend">
           <span class="legend-box start"></span> Start · <span class="legend-box end"></span> Ende ·
           <span class="legend-box range"></span> Zeitraum ·
-          <span class="legend-box blocked"></span> Belegt
+          <span class="legend-box blocked reserved"></span> Reserviert ·
+          <span class="legend-box blocked paid"></span> Bezahlt
         </p>
       </div>
 
@@ -549,7 +665,7 @@ onUnmounted(() => {
 
         <p class="hint">
           Nach dem Absenden wird der Zeitraum für dich reserviert. Du hast anschließend
-          <strong>5 Minuten</strong> Zeit, die Zahlung abzuschließen.
+          <strong>10 Minuten</strong> Zeit, die Zahlung abzuschließen.
         </p>
 
         <p v-if="bookingError" class="msg error">{{ bookingError }}</p>
@@ -574,14 +690,14 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Preis-Modal: nur für Kunden, nicht für Admin -->
+    <!-- 🔥 Preis-Box direkt UNTER der Karte, kein Modal mehr -->
     <BookingPriceBox
       v-if="createdBooking && showPriceModal && !isAdmin"
       :visible="showPriceModal"
       :buchung-id="createdBooking.id"
       :initial-km-paket="150"
       :can-pay="reservationActive"
-      @close="showPriceModal = false"
+      @close="onPriceCancel"
       @price-loaded="onPriceLoaded"
       @pay="onPricePay"
     />
@@ -601,6 +717,9 @@ onUnmounted(() => {
   gap: 18px;
 }
 
+.msg.info {
+  color: #0f172a;
+}
 .booking-head {
   display: flex;
   justify-content: space-between;
@@ -739,6 +858,22 @@ onUnmounted(() => {
   color: #0f172a;
 }
 
+/* Reservierte (unbezahlte) Buchung = orange */
+.calendar-cell.is-blocked-reserviert {
+  background: #fed7aa; /* orange */
+  color: #9a3412;
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+/* Bezahlte Buchung oder Admin-Block = rot */
+.calendar-cell.is-blocked-bezahlt {
+  background: #fecaca; /* rot/rosa */
+  color: #b91c1c;
+  cursor: not-allowed;
+  opacity: 0.95;
+}
+
 .calendar-cell span {
   pointer-events: none;
 }
@@ -753,10 +888,18 @@ onUnmounted(() => {
 }
 
 /* NEU: geblockte Tage */
-.calendar-cell.is-blocked {
-  background: #fee2e2;
+/* Geblockte Tage – verschieden je nach Status */
+.calendar-cell.is-blocked-reserviert {
+  background: #fed7aa; /* orange-ish */
+  color: #9a3412;
+  opacity: 0.9;
+  cursor: not-allowed;
+}
+
+.calendar-cell.is-blocked-bezahlt {
+  background: #fecaca; /* rot-ish */
   color: #b91c1c;
-  opacity: 0.7;
+  opacity: 0.95;
   cursor: not-allowed;
 }
 
@@ -804,6 +947,17 @@ onUnmounted(() => {
   background: rgba(34, 197, 94, 0.18);
 }
 .legend-box.blocked {
+  background: #fecaca;
+}
+.legend-box.blocked.paid {
+  background: #fecaca; /* wie .is-blocked-bezahlt */
+}
+
+.legend-box.blocked.reserved {
+  background: #fed7aa;
+}
+
+.legend-box.blocked.paid {
   background: #fecaca;
 }
 
