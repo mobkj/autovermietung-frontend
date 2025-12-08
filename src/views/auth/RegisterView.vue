@@ -369,6 +369,9 @@ const submit = async () => {
           <div class="input-group">
             <label>Firmenname (optional)</label>
             <input v-model="companyName" type="text" />
+            <small class="hint">
+              Wenn du eine Firma angibst, werden zukünftige Rechnungen auf diese Firma ausgestellt.
+            </small>
             <!-- Hinweis lieber komplett entfernen oder etwas wie: -->
             <!-- <small class="hint">Falls abweichend von deinem Namen.</small> -->
           </div>

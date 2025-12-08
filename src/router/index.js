@@ -37,6 +37,11 @@ const router = createRouter({
       name: 'Datenschutz',
       component: () => import('@/views/public/DatenschutzView.vue'),
     },
+    {
+      path: '/agb',
+      name: 'AGB',
+      component: () => import('@/views/public/AGBView.vue'),
+    },
 
     // ======================
     // AUTH
@@ -108,6 +113,12 @@ const router = createRouter({
       path: '/admin/fahrzeuge',
       name: 'admin-fahrzeuge',
       component: () => import('../views/admin/AdminFahrzeugeView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/admin/todo',
+      name: 'admin-todo',
+      component: () => import('../views/admin/AdminTodoView.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
     },
 

@@ -58,8 +58,36 @@ const onPriceLoaded = (preisDto) => {
   lastLoadedPrice.value = preisDto
 }
 
+function syncCreatedBookingFromBackend() {
+  if (!createdBooking.value) return
+
+  // gleiche Buchung im frisch geladenen Backend-Array suchen
+  const updated = bookedRanges.value.find((b) => b.id === createdBooking.value.id)
+
+  // 1) Wenn es die Buchung gar nicht mehr gibt ODER
+  // 2) sie ist nicht mehr RESERVIERT (also z.B. BEZAHLT oder STORNIERT)
+  if (!updated || updated.status !== 'RESERVIERT') {
+    // 👉 Frontend-Reservierung aufräumen
+    createdBooking.value = null
+    showPriceModal.value = false
+
+    clearReservationTimer()
+    reservationExpiresAt.value = null
+    reservationRemaining.value = ''
+    bookingSuccess.value = ''
+
+    return
+  }
+
+  // 3) Es ist weiterhin eine Reservierung → ggf. Timer aktualisieren
+  createdBooking.value = updated
+  if (updated.reserviertBis) {
+    startReservationTimer(updated.reserviertBis)
+  }
+}
+
 // Stripe-Checkout starten
-const onPricePay = async ({ kmPaket, bringService }) => {
+const onPricePay = async ({ kmPaket, bringService, agbAccepted }) => {
   if (!createdBooking.value) return
 
   if (!reservationActive.value) {
@@ -74,7 +102,8 @@ const onPricePay = async ({ kmPaket, bringService }) => {
     const res = await stripeService.createCheckoutSession({
       buchungId: createdBooking.value.id,
       freieKmPaket: kmPaket,
-      bringService, // ✅ NEU
+      bringService,
+      agbAccepted, // ✅ NEU
     })
 
     if (res.checkoutUrl) {
@@ -384,6 +413,7 @@ async function loadBlockedDates() {
     )
 
     bookedRanges.value = Array.isArray(list) ? list : []
+    syncCreatedBookingFromBackend()
   } catch (e) {
     console.error('[Booking] Fehler beim Laden der belegten Tage:', e)
   }
@@ -393,9 +423,11 @@ function restoreActiveReservation() {
   const user = currentUser.value
   if (!user) return
 
+  // wenn wir schon eine aktive createdBooking im State haben → nichts tun
+  if (createdBooking.value) return
+
   const now = new Date()
 
-  // Eine noch gültige Reservierung für diesen User suchen
   const active = bookedRanges.value.find((b) => {
     if (!b) return false
     if (b.status !== 'RESERVIERT') return false
@@ -410,13 +442,11 @@ function restoreActiveReservation() {
 
   if (!active) return
 
-  // 👉 Reservierung in der UI wiederherstellen
   createdBooking.value = active
   showPriceModal.value = true
   bookingSuccess.value =
     'Du hast noch eine laufende Reservierung. Unten kannst du den Preis einsehen und die Zahlung abschließen, solange der Countdown läuft.'
 
-  // Countdown wieder starten
   startReservationTimer(active.reserviertBis)
 }
 
@@ -474,19 +504,21 @@ async function submitBooking() {
     }
 
     // ✅ ADMIN-FLOW: interner Block, kein Stripe, keine PriceBox
+    // ✅ ADMIN-FLOW: interner Block, kein Stripe, keine PriceBox
     if (isAdmin.value) {
       const adminPayload = {
         ...basePayload,
-        // adminBlockieren nutzt userId nicht zwingend, aber kannst du optional mitgeben
         userId: user.id ?? null,
       }
 
-      const response = await bookingService.adminBlockBooking(adminPayload)
-      createdBooking.value = response
+      await bookingService.adminBlockBooking(adminPayload)
+
+      // ❗ WICHTIG: Admin-Fall soll NICHT wie eine "aktive Reservierung" behandelt werden
+      createdBooking.value = null
+      showPriceModal.value = false
 
       bookingSuccess.value =
         'Du hast dieses Fahrzeug für diesen Zeitraum intern blockiert. Kunden können diesen Zeitraum nicht mehr buchen.'
-      showPriceModal.value = false
 
       await loadBlockedDates()
       startDate.value = null

@@ -16,8 +16,8 @@ import MazariLogo from '@/components/MazariLogo.vue'
       <div class="footer-links">
         <RouterLink to="/impressum" class="f-link">Impressum</RouterLink>
         <RouterLink to="/datenschutz" class="f-link">Datenschutz</RouterLink>
-        <RouterLink to="/" class="f-link">AGB</RouterLink>
-        <RouterLink to="/" class="f-link">Kontakt</RouterLink>
+        <RouterLink to="/agb" class="f-link">AGB</RouterLink>
+        <RouterLink to="/contact" class="f-link">Kontakt</RouterLink>
       </div>
 
       <!-- SOCIAL -->

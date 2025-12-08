@@ -25,6 +25,8 @@ const filteredUsers = computed(() => {
     const fullName = `${u.firstName ?? ''} ${u.lastName ?? ''}`.toLowerCase()
     const birthday = String(u.birthday ?? '').toLowerCase()
     const license = String(u.driverLicenseNumber ?? '').toLowerCase()
+    const phone = String(u.phone ?? '').toLowerCase()
+    const city = String(u.city ?? '').toLowerCase()
 
     return (
       String(u.id).toLowerCase().includes(q) ||
@@ -32,10 +34,21 @@ const filteredUsers = computed(() => {
       (u.email ?? '').toLowerCase().includes(q) ||
       (u.role ?? '').toLowerCase().includes(q) ||
       birthday.includes(q) ||
-      license.includes(q)
+      license.includes(q) ||
+      phone.includes(q) ||
+      city.includes(q)
     )
   })
 })
+
+const formatAddress = (u) => {
+  const street = [u.street, u.houseNumber].filter(Boolean).join(' ')
+  const city = [u.postalCode, u.city].filter(Boolean).join(' ')
+  const country = u.country || ''
+
+  const parts = [street, city, country].filter((p) => p && p.trim().length > 0)
+  return parts.length ? parts.join(', ') : '-'
+}
 
 const clearSearch = () => (search.value = '')
 
@@ -92,22 +105,29 @@ const goToBookings = (userId) => {
               <th>ID</th>
               <th>Name</th>
               <th>Email</th>
+              <th>Telefon</th>
               <th>Rolle</th>
               <th>Geburtsdatum</th>
               <th>Führerschein-Nr.</th>
+              <th>Adresse</th>
+              <th>Firma</th>
               <th>Aktionen</th>
             </tr>
           </thead>
 
           <tbody>
             <tr v-if="!loading && filteredUsers.length === 0">
-              <td class="empty" colspan="7">Kein Kunde gefunden.</td>
+              <td class="empty" colspan="10">Kein Kunde gefunden.</td>
             </tr>
 
             <tr v-for="u in filteredUsers" :key="u.id" :class="{ 'row-admin': u.role === 'ADMIN' }">
               <td class="id-cell">{{ u.id }}</td>
+
               <td>{{ u.firstName }} {{ u.lastName }}</td>
+
               <td>{{ u.email }}</td>
+
+              <td>{{ u.phone || '-' }}</td>
 
               <td>
                 <span class="role-pill" :class="{ 'role-admin': u.role === 'ADMIN' }">
@@ -116,7 +136,18 @@ const goToBookings = (userId) => {
               </td>
 
               <td>{{ formatBirthday(u.birthday) }}</td>
-              <td class="license-cell">{{ u.driverLicenseNumber || '-' }}</td>
+
+              <td class="license-cell">
+                {{ u.driverLicenseNumber || '-' }}
+              </td>
+
+              <td>
+                {{ formatAddress(u) }}
+              </td>
+
+              <td>
+                {{ u.companyName || '-' }}
+              </td>
 
               <td>
                 <div class="actions">
@@ -253,9 +284,9 @@ const goToBookings = (userId) => {
 /* Table */
 .users-table {
   width: 100%;
-  min-width: 980px;
+  min-width: 1150px;
   border-collapse: separate;
-  border-spacing: 0 8px; /* spacing between rows = card vibe */
+  border-spacing: 0 8px;
 }
 
 .users-table thead th {
@@ -393,7 +424,7 @@ const goToBookings = (userId) => {
     font-size: 22px;
   }
   .users-table {
-    min-width: 860px;
+    min-width: 1050px;
   }
   .users-table thead th,
   .users-table tbody td {

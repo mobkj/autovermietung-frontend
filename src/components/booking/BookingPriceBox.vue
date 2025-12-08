@@ -23,6 +23,9 @@ const emit = defineEmits(['price-loaded', 'pay', 'close'])
 const freieKmPaket = ref(props.initialKmPaket)
 const bringService = ref(false)
 
+// ✅ NEU: AGB akzeptiert?
+const agbAccepted = ref(false)
+
 // Daten vom Backend
 const preis = ref(null)
 const loading = ref(false)
@@ -35,6 +38,10 @@ const errorMessage = computed(
 const onCancel = () => {
   emit('close')
 }
+
+const canSubmit = computed(
+  () => !!preis.value && !loading.value && props.canPay && agbAccepted.value,
+)
 
 // 🔥 Preis IMMER vom Backend holen – hier wird NICHT gerechnet
 const loadPreis = async () => {
@@ -92,6 +99,7 @@ watch(
 onMounted(() => {
   freieKmPaket.value = props.initialKmPaket ?? 150
   bringService.value = false
+  agbAccepted.value = false
 
   if (props.buchungId) {
     loadPreis()
@@ -117,6 +125,7 @@ const onPay = () =>
   emit('pay', {
     kmPaket: freieKmPaket.value,
     bringService: bringService.value,
+    agbAccepted: agbAccepted.value,
   })
 </script>
 
@@ -146,6 +155,31 @@ const onPay = () =>
       </label>
       <small class="hint">
         Der Aufpreis für den Bringservice ist in der Berechnung unten bereits berücksichtigt.
+      </small>
+    </div>
+
+    <!-- ✅ AGB + Stornobedingungen -->
+    <div class="field field-checkbox agb-box">
+      <label class="checkbox-label">
+        <input type="checkbox" v-model="agbAccepted" />
+        <span>
+          Ich habe die <RouterLink to="/agb" class="agb" target="_blank">AGB</RouterLink> gelesen
+          und akzeptiere die Stornobedingungen.
+        </span>
+      </label>
+
+      <small class="hint">
+        <strong>Hinweis zu Stornierungen & Zahlungsanbieter:</strong><br /><br />
+        Die Zahlungsabwicklung erfolgt über einen externen Zahlungsdienstleister (z.&nbsp;B.
+        Stripe). Bei einer Stornierung wird ein Storno- bzw. Zahlungsentgelt einbehalten, das die
+        vom Zahlungsdienstleister berechneten Gebühren abdeckt. Die genaue Rückerstattungssumme
+        hängt vom Buchungsbetrag und dem Zeitpunkt der Stornierung ab und wird von unserem System
+        automatisch berechnet.<br /><br />
+        – Stornierung bis 10 Tage vor Mietbeginn: Rückerstattung des Mietpreises abzüglich
+        Storno-/Zahlungsentgelt.<br /><br />
+        – Stornierung innerhalb von 10 Tagen vor Mietbeginn: Rückerstattung von 50&nbsp;% des
+        Mietpreises abzüglich Storno-/Zahlungsentgelt.<br /><br />
+        – Nach Mietbeginn ist eine Rückerstattung in der Regel ausgeschlossen.
       </small>
     </div>
 
@@ -202,12 +236,7 @@ const onPay = () =>
     <div class="price-actions">
       <button type="button" class="btn ghost" @click="onCancel">Abbrechen</button>
 
-      <button
-        type="button"
-        class="btn primary"
-        :disabled="!preis || loading || !canPay"
-        @click="onPay"
-      >
+      <button type="button" class="btn primary" :disabled="!canSubmit" @click="onPay">
         Jetzt bezahlen
       </button>
     </div>
@@ -335,6 +364,13 @@ const onPay = () =>
   display: flex;
   justify-content: flex-end;
   margin-top: 6px;
+}
+
+.agb {
+  color: var(--mazari-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .btn {

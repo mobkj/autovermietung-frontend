@@ -68,6 +68,17 @@ const logout = () => {
 
           <div class="trennlinie" v-if="auth.user?.role === 'ADMIN'"></div>
 
+          <RouterLink
+            v-if="auth.user?.role === 'ADMIN'"
+            to="/admin/todo"
+            class="menu-item link-wrapper"
+          >
+            <span class="menu-title">Demnächst abzugebenede Fahrzeuge</span>
+            <p class="menu-sub">Schaue welches Fahrzeug als nächstes raus geht</p>
+          </RouterLink>
+
+          <div class="trennlinie" v-if="auth.user?.role === 'ADMIN'"></div>
+
           <!-- LOGOUT -->
           <div class="menu-item link-wrapper logout-item" @click="logout">
             <span class="menu-title">Abmelden</span>

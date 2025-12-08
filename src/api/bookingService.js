@@ -69,6 +69,39 @@ export const bookingService = {
     const { data } = await api.put(url)
     return data
   },
+  async downloadInvoice(buchungId, fileName) {
+    const response = await api.get(`/api/payments/${buchungId}/pdf`, {
+      responseType: 'blob',
+    })
+
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName || `Rechnung_${buchungId}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
+  },
+
+  async downloadStornoInvoice(buchungId) {
+    const response = await api.get(`/api/payments/${buchungId}/storno-pdf`, {
+      responseType: 'blob',
+    })
+
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    window.open(url, '_blank')
+  },
+
+  async getAdminTodos(range = 'week') {
+    const { data } = await api.get('/api/admin/buchungen/todo', {
+      params: { range },
+    })
+    return data
+  },
 }
 
 export default bookingService

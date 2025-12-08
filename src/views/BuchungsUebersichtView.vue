@@ -221,12 +221,29 @@ async function onCustomerCancel(buchung) {
   }
 }
 
-const openInvoiceWindow = (buchung) => {
-  // TODO: Später echte URL zur Rechnung setzen, z. B.:
-  // const url = `/rechnung/${buchung.id}` oder aus Backend geliefert
-  // window.open(url, '_blank')
+const openInvoiceWindow = async (buchung) => {
+  try {
+    const fileName = buchung.buchungsNummer
+      ? `Rechnung_${buchung.buchungsNummer}.pdf`
+      : `Rechnung_${buchung.id}.pdf`
 
-  window.alert('[Rechnung] Placeholder geöffnet für Buchung:', buchung.id)
+    await bookingService.downloadInvoice(buchung.id, fileName)
+  } catch (e) {
+    console.error('[Rechnung] Fehler beim Herunterladen:', e)
+    window.alert('Die Rechnung konnte nicht heruntergeladen werden.')
+  }
+}
+
+const openStornoInvoice = async (buchung) => {
+  try {
+    await bookingService.downloadStornoInvoice(buchung.id)
+  } catch (e) {
+    console.error('[Stornorechnung] Fehler beim Öffnen:', e)
+    window.alert(
+      e?.response?.data?.message ||
+        'Die Stornorechnung konnte nicht geöffnet werden. Bitte versuche es später erneut.',
+    )
+  }
 }
 
 // ===============================
@@ -399,20 +416,31 @@ onBeforeUnmount(() => {
                 </div>
 
                 <!-- Aktionen -->
-                <div v-if="b.status !== 'STORNIERT'" class="booking-actions">
-                  <!-- Admin-Ansicht: Buchung freigeben -->
-
+                <!-- Aktionen -->
+                <div class="booking-actions">
+                  <!-- Kunde: Rechnung für BEZAHLT -->
                   <button
                     v-if="b.status === 'BEZAHLT' && !isAdminUser"
                     class="action-btn invoice"
                     type="button"
                     @click="openInvoiceWindow(b)"
                   >
-                    📄 Rechnung öffnen
+                    📄 Rechnung herunterladen
                   </button>
 
+                  <!-- Kunde: Stornorechnung für STORNIERT -->
                   <button
-                    v-if="isAdminUser"
+                    v-if="b.status === 'STORNIERT' && !isAdminUser"
+                    class="action-btn invoice"
+                    type="button"
+                    @click="openStornoInvoice(b)"
+                  >
+                    📄 Stornorechnung öffnen
+                  </button>
+
+                  <!-- Admin: Buchung wieder freigeben (nur sinnvoll, wenn nicht storniert) -->
+                  <button
+                    v-if="isAdminUser && b.status !== 'STORNIERT'"
                     class="action-btn danger"
                     type="button"
                     :disabled="cancelLoadingId === b.id"
@@ -423,9 +451,9 @@ onBeforeUnmount(() => {
                     }}
                   </button>
 
-                  <!-- Kunden-Ansicht: echte Stornierung -->
+                  <!-- Kunde: Stornieren nur, solange nicht storniert -->
                   <button
-                    v-else
+                    v-else-if="!isAdminUser && b.status !== 'STORNIERT'"
                     class="action-btn ghost"
                     type="button"
                     :disabled="cancelLoadingId === b.id"
