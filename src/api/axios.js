@@ -1,24 +1,18 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/AuthStore'
 
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL,
+  headers: { 'Content-Type': 'application/json' },
 })
 
-// Debug (kannst du später löschen)
-console.log('API Base URL:', api.defaults.baseURL)
+console.log('API Base URL:', baseURL)
 
-// JWT automatisch mitsenden
 api.interceptors.request.use((config) => {
   const auth = useAuthStore()
-
-  if (auth?.token) {
-    config.headers.Authorization = `Bearer ${auth.token}`
-  }
-
+  if (auth?.token) config.headers.Authorization = `Bearer ${auth.token}`
   return config
 })
 
