@@ -18,7 +18,7 @@ export const bookingService = {
 
   // 🔥 Neu: Reservierung komplett löschen (Abbrechen in PriceBox)
   cancelReservation(buchungId) {
-    return api.delete(`api/buchungen/${buchungId}/abbrechen`)
+    return api.delete(`/api/buchungen/${buchungId}/abbrechen`)
   },
 
   // Buchungen für ein Fahrzeug (z.B. für Kalender / belegte Tage)

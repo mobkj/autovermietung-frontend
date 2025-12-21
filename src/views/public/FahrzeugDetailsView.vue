@@ -1,6 +1,6 @@
 <script setup>
 import NavBar from '@/components/NavBar.vue'
-import { onMounted, ref, computed, watch } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { vehicleService } from '@/api/vehicleService'
 import VehicleBookingOverview from '@/components/booking/VehicleBookingOverview.vue'
@@ -15,11 +15,9 @@ const error = ref('')
 
 const currentIndex = ref(0)
 
-const loadVehicle = async () => {
+onMounted(async () => {
   try {
     loading.value = true
-    error.value = ''
-
     const data = await vehicleService.getVehicleById(id.value)
     vehicle.value = data
 
@@ -33,20 +31,10 @@ const loadVehicle = async () => {
   } catch (e) {
     error.value =
       e?.response?.data?.message || e?.message || 'Fahrzeug konnte nicht geladen werden.'
-    vehicle.value = null
   } finally {
     loading.value = false
   }
-}
-
-onMounted(loadVehicle)
-
-// ✅ WICHTIG: wenn sich die ID ändert, neu laden
-watch(
-  () => route.params.id,
-  () => loadVehicle(),
-  { immediate: false },
-)
+})
 </script>
 
 <template>
@@ -63,12 +51,10 @@ watch(
       </div>
 
       <!-- Details -->
-      <div v-else-if="vehicle">
+      <div v-else>
         <VehicleDetailsCard :vehicle="vehicle" />
-        <VehicleBookingOverview :vehicle="vehicle" :vehicle-id="vehicle.id" />
+        <VehicleBookingOverview v-if="vehicle" :vehicle="vehicle" :vehicle-id="vehicle.id" />
       </div>
-
-      <div v-else class="details-error">Fahrzeug konnte nicht geladen werden.</div>
     </main>
   </div>
 </template>

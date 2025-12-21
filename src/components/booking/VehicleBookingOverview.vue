@@ -67,7 +67,6 @@ function syncCreatedBookingFromBackend() {
   // 1) Wenn es die Buchung gar nicht mehr gibt ODER
   // 2) sie ist nicht mehr RESERVIERT (also z.B. BEZAHLT oder STORNIERT)
   if (!updated || updated.status !== 'RESERVIERT') {
-    // 👉 Frontend-Reservierung aufräumen
     createdBooking.value = null
     showPriceModal.value = false
 
@@ -75,6 +74,7 @@ function syncCreatedBookingFromBackend() {
     reservationExpiresAt.value = null
     reservationRemaining.value = ''
     bookingSuccess.value = ''
+    bookingError.value = '' // ✅ HINZUFÜGEN
 
     return
   }
@@ -444,6 +444,7 @@ function restoreActiveReservation() {
 
   createdBooking.value = active
   showPriceModal.value = true
+  bookingError.value = ''
   bookingSuccess.value =
     'Du hast noch eine laufende Reservierung. Unten kannst du den Preis einsehen und die Zahlung abschließen, solange der Countdown läuft.'
 
@@ -534,6 +535,7 @@ async function submitBooking() {
 
     const response = await bookingService.createBooking(payload)
     createdBooking.value = response
+    bookingError.value = ''
 
     if (response.reserviertBis) {
       startReservationTimer(response.reserviertBis)
