@@ -52,6 +52,16 @@ const reservationActive = computed(() => {
   return reservationExpiresAt.value.getTime() > Date.now()
 })
 
+function parseBackendIso(iso) {
+  if (!iso) return null
+
+  // Wenn bereits Zeitzone vorhanden (Z oder +01:00), normal parsen
+  const hasTz = /Z$|[+-]\d\d:\d\d$/.test(iso)
+  const d = new Date(hasTz ? iso : `${iso}Z`) // <- wichtig: ohne TZ behandeln wir es als UTC
+
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
 // === Preis-Box Events ===
 const onPriceLoaded = (preisDto) => {
   console.log('[Preis] Preis geladen:', preisDto)
@@ -82,7 +92,7 @@ function syncCreatedBookingFromBackend() {
   // 3) Es ist weiterhin eine Reservierung → ggf. Timer aktualisieren
   createdBooking.value = updated
   if (updated.reserviertBis) {
-    startReservationTimer(updated.reserviertBis)
+    startReservationTimer(parseBackendIso(updated.reserviertBis)) // ✅ Date
   }
 }
 
@@ -375,22 +385,25 @@ function updateReservationCountdown() {
   reservationRemaining.value = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 }
 
-function startReservationTimer(reserviertBisIso) {
+function startReservationTimer(expiryDate) {
   clearReservationTimer()
-  if (!reserviertBisIso) {
+
+  if (!expiryDate) {
     reservationExpiresAt.value = null
     reservationRemaining.value = ''
-    return
+    return false
   }
-  const expiry = new Date(reserviertBisIso)
-  if (Number.isNaN(expiry.getTime())) {
+
+  if (expiryDate.getTime() <= Date.now()) {
     reservationExpiresAt.value = null
     reservationRemaining.value = ''
-    return
+    return false
   }
-  reservationExpiresAt.value = expiry
+
+  reservationExpiresAt.value = expiryDate
   updateReservationCountdown()
   reservationIntervalId = setInterval(updateReservationCountdown, 1000)
+  return true
 }
 
 // === BUCHUNGEN FÜR KALENDER LADEN ===
@@ -434,9 +447,8 @@ function restoreActiveReservation() {
     if (b.userId !== user.id) return false
     if (!b.reserviertBis) return false
 
-    const expiry = new Date(b.reserviertBis)
-    if (Number.isNaN(expiry.getTime())) return false
-
+    const expiry = parseBackendIso(b.reserviertBis)
+    if (!expiry) return false
     return expiry.getTime() > now.getTime()
   })
 
@@ -448,7 +460,7 @@ function restoreActiveReservation() {
   bookingSuccess.value =
     'Du hast noch eine laufende Reservierung. Unten kannst du den Preis einsehen und die Zahlung abschließen, solange der Countdown läuft.'
 
-  startReservationTimer(active.reserviertBis)
+  startReservationTimer(parseBackendIso(active.reserviertBis)) // ✅ Date
 }
 
 // === BUCHUNG ABSCHICKEN ===
@@ -535,15 +547,25 @@ async function submitBooking() {
 
     const response = await bookingService.createBooking(payload)
     createdBooking.value = response
+
+    // ✅ Erfolgstext erst mal setzen
     bookingError.value = ''
-
-    if (response.reserviertBis) {
-      startReservationTimer(response.reserviertBis)
-    }
-
     bookingSuccess.value =
       'Deine Reservierung wurde erstellt und ist für 10 Minuten gültig. Unten kannst du den Preis einsehen und die Zahlung abschließen. Die Buchung gilt erst als bestätigt, wenn die Zahlung erfolgt ist.'
     showPriceModal.value = true
+
+    // ✅ Expiry robust parsen und nur dann Timer starten
+    const expiry = parseBackendIso(response.reserviertBis)
+
+    const timerOk = startReservationTimer(expiry)
+    if (!timerOk) {
+      // Wenn Backend-Zeit schon abgelaufen wirkt: keine Success-Message zeigen
+      bookingSuccess.value = ''
+      bookingError.value =
+        'Deine Reservierung ist abgelaufen. Bitte wähle den Zeitraum erneut und starte die Buchung neu.'
+      showPriceModal.value = false
+      createdBooking.value = null
+    }
 
     await loadBlockedDates()
 
