@@ -197,7 +197,6 @@ function dateKey(d) {
 // === BLOCKIERTE TAGE (aus Buchungen) mit Status (RESERVIERT / BEZAHLT) ===
 const blockedDateStatusMap = computed(() => {
   const map = new Map()
-  const now = new Date()
 
   for (const b of bookedRanges.value) {
     if (!b.startDatum || !b.endDatum) continue
@@ -205,36 +204,26 @@ const blockedDateStatusMap = computed(() => {
     let status = b.status
     if (status !== 'RESERVIERT' && status !== 'BEZAHLT') continue
 
-    // 👉 Admin-Block (userId null) soll direkt "hard" blocken = wie BEZAHLT (rot)
-    if (status === 'RESERVIERT' && (b.userId == null || b.userId === undefined)) {
-      status = 'BEZAHLT'
+    // Admin-Block “hart” behandeln
+    if (status === 'RESERVIERT' && b.userId == null) status = 'BEZAHLT'
+
+    // ✅ Reservierung nur blockend, wenn noch aktiv
+    if (status === 'RESERVIERT' && b.reserviertBis) {
+      const expiry = parseBackendIso(b.reserviertBis)
+      if (!expiry || expiry.getTime() < Date.now()) continue
     }
 
-    // Abgelaufene Reservierungen ignorieren
-    if (
-      status === 'RESERVIERT' &&
-      b.reserviertBis &&
-      new Date(b.reserviertBis).getTime() < now.getTime()
-    ) {
-      continue
-    }
-
-    const start = new Date(b.startDatum)
-    const end = new Date(b.endDatum)
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) continue
+    const start = parseBackendIso(b.startDatum)
+    const end = parseBackendIso(b.endDatum)
+    if (!start || !end) continue
 
     for (let d = new Date(start.getTime()); d <= end; d.setDate(d.getDate() + 1)) {
       const key = dateKey(d)
       const existing = map.get(key)
 
-      // Wenn schon BEZAHLT da ist, bleibt es BEZAHLT
       if (existing === 'BEZAHLT') continue
-
-      if (status === 'BEZAHLT') {
-        map.set(key, 'BEZAHLT')
-      } else if (status === 'RESERVIERT' && !existing) {
-        map.set(key, 'RESERVIERT')
-      }
+      if (status === 'BEZAHLT') map.set(key, 'BEZAHLT')
+      else if (!existing) map.set(key, 'RESERVIERT')
     }
   }
 

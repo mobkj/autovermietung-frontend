@@ -9,7 +9,6 @@ async function submitForm() {
   alert('Emall Cotroller wird noch impkemetier')
 }
 </script>
-
 <template>
   <div>
     <nav-bar />
