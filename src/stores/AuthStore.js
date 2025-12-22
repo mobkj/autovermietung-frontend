@@ -10,10 +10,27 @@ export const useAuthStore = defineStore('auth', {
   }),
 
   getters: {
-    isLoggedIn: (state) => !!state.token,
+    isLoggedIn: (state) => !!state.token && !!state.user,
   },
 
   actions: {
+    async init() {
+      if (!this.token) {
+        this.user = null
+        return
+      }
+
+      try {
+        // irgendein geschützter Endpoint reicht
+        const res = await api.get('/api/users/me')
+        // res.data sollte dein User sein
+        this.user = res.data
+        localStorage.setItem('user', JSON.stringify(this.user))
+      } catch (e) {
+        // Token ungültig/abgelaufen → sauber ausloggen
+        this.logout()
+      }
+    },
     // ---------- LOGIN ----------
     async login(email, password) {
       try {
