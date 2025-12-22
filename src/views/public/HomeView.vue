@@ -102,6 +102,68 @@ onMounted(async () => {
       </div>
     </section>
 
+    <!-- INFO / KAUTION -->
+    <section class="info">
+      <div class="info-card">
+        <div class="info-badge">
+          <i class="fa-solid fa-circle-info"></i>
+          Wichtiger Hinweis zur Kaution
+        </div>
+
+        <h2 class="info-title">
+          Kaution wird vor Ort geregelt – online zahlst du nur den Mietpreis.
+        </h2>
+
+        <p class="info-text">
+          Damit alles transparent bleibt: Über die Website berechnen wir ausschließlich den
+          <strong>Mietpreis</strong>. Die <strong>Kaution</strong> wird bei der Fahrzeugübergabe
+          persönlich hinterlegt.
+        </p>
+
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-icon">
+              <i class="fa-solid fa-euro-sign"></i>
+            </div>
+            <div class="info-content">
+              <h3>Mietpreis online</h3>
+              <p>Du zahlst online nur die Miete — schnell, sicher und nachvollziehbar.</p>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <div class="info-icon">
+              <i class="fa-solid fa-handshake"></i>
+            </div>
+            <div class="info-content">
+              <h3>Kaution bei Übergabe</h3>
+              <p>Die Kaution wird persönlich hinterlegt, wenn du das Fahrzeug übernimmst.</p>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <div class="info-icon">
+              <i class="fa-solid fa-car"></i>
+            </div>
+            <div class="info-content">
+              <h3>Optional: Fahrzeug als Kaution</h3>
+              <p>
+                In manchen Fällen akzeptieren wir auch ein Fahrzeug als Kaution und parken es sicher
+                an unserem Standort.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-note">
+          <span class="dot"></span>
+          <span>
+            Du siehst die jeweilige Kautionshöhe immer transparent in den Fahrzeugdetails.
+          </span>
+        </div>
+      </div>
+    </section>
+
     <!-- VEHICLES PREVIEW -->
     <section class="vehicles">
       <div class="vehicles-head">
@@ -457,6 +519,149 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+/* INFO / KAUTION */
+.info {
+  padding: 0 4px;
+}
+
+.info-card {
+  border-radius: 20px;
+  padding: 22px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(6, 69, 127, 0.08), transparent 55%),
+    radial-gradient(circle at 90% 0%, rgba(245, 181, 68, 0.12), transparent 60%), #ffffff;
+  border: 1px solid rgba(6, 69, 127, 0.1);
+  box-shadow: var(--mazari-shadow-soft);
+  position: relative;
+  overflow: hidden;
+}
+
+.info-card::before {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(245, 181, 68, 0.22), transparent 45%),
+    radial-gradient(circle at 70% 70%, rgba(6, 69, 127, 0.22), transparent 55%);
+  filter: blur(70px);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.info-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--mazari-primary-dark);
+  background: rgba(6, 69, 127, 0.08);
+  border: 1px solid rgba(6, 69, 127, 0.12);
+}
+
+.info-title {
+  position: relative;
+  margin: 12px 0 8px;
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 900;
+  color: var(--mazari-text-dark);
+  letter-spacing: -0.3px;
+}
+
+.info-text {
+  position: relative;
+  margin: 0;
+  font-size: 15px;
+  color: #4a5568;
+  font-weight: 600;
+  max-width: 820px;
+}
+
+.info-grid {
+  position: relative;
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.info-item {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid rgba(6, 69, 127, 0.12);
+  box-shadow: var(--mazari-shadow-subtle);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  transition: 0.22s ease;
+}
+
+.info-item:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--mazari-shadow-soft);
+  border-color: rgba(6, 69, 127, 0.22);
+}
+
+.info-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(6, 69, 127, 0.08);
+  color: var(--mazari-primary);
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+.info-content h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--mazari-text-dark);
+}
+
+.info-content p {
+  margin: 0;
+  font-size: 13px;
+  color: #4a5568;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.info-note {
+  position: relative;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(245, 181, 68, 0.12);
+  border: 1px solid rgba(245, 181, 68, 0.35);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-weight: 700;
+  color: #7a4a00;
+}
+
+.info-note .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(245, 181, 68, 0.9);
+  box-shadow: 0 0 0 4px rgba(245, 181, 68, 0.18);
+}
+
+/* Responsive */
+@media (max-width: 960px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .vehicle-body h3 {

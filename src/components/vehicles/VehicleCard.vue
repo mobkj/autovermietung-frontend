@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { imgUrl } from '@/api/imgUrl'
 
 const props = defineProps({
   vehicle: { type: Object, required: true },
@@ -21,28 +22,19 @@ const price = computed(() => {
 
 const placeholderImg = 'https://placehold.co/520x320?text=Mazari'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || ''
-
 const previewImgSrc = computed(() => {
   const bilder = props.vehicle.bilder || []
   if (!bilder.length) return placeholderImg
 
   const cover = bilder.find((b) => b.vorschau)
-  const path = cover?.url || bilder[0]?.url
-
-  if (!path) return placeholderImg
-  if (path.startsWith('http')) return path
-
-  // Hier wird aus "/fahrzeug1/bild1_1.png"
-  // -> "https://dein-ngrok.../fahrzeug1/bild1_1.png"
-  return API_BASE_URL + path
+  return cover?.url || bilder[0]?.url || placeholderImg
 })
 </script>
 
 <template>
   <article class="vehicle-card">
     <div class="vehicle-img-wrap">
-      <img :src="previewImgSrc" :alt="title" class="vehicle-img" />
+      <img :src="imgUrl(previewImgSrc)" :alt="title" class="vehicle-img" />
       <div class="price-badge">{{ price }} / Tag</div>
     </div>
 

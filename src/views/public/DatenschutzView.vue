@@ -21,15 +21,15 @@ import NavBar from '@/components/NavBar.vue'
         <p>
           <!-- TODO: Firmendaten anpassen -->
           <strong>Mazari Autovermietung</strong><br />
-          Egerstraße 2<br />
-          65205 Wiesbaden – Erbenheim<br />
+          Am Königsfloß 6<br />
+          55252 Mainz-Kastel<br />
           Deutschland
         </p>
         <p>
           Telefon:
-          <a href="tel:+49 162 7499403">+49 162 7499403</a><br />
+          <a href="tel:+49 152 02148802">+49 152 02148802</a><br />
           E-Mail:
-          <a href="mailto:mkgv.wiesbaden@gmail.com">mkgv.wiesbaden@gmail.com</a>
+          <a href="mailto:info@mazariautovermietung.com">info@mazariautovermietung.com</a>
         </p>
         <!-- Optional: Datenschutzbeauftragter -->
         <!-- TODO: Nur verwenden, wenn vorhanden -->

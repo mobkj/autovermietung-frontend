@@ -1,9 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { imgUrl } from '@/api/imgUrl'
 
 const props = defineProps({
   vehicle: { type: Object, required: true },
-  // z.B. für Ansicht aus "Meine Buchungen": keine CTAs anzeigen
   showActions: { type: Boolean, default: true },
 })
 
@@ -18,10 +18,11 @@ const currentImage = computed(() => {
 })
 
 const currentImageUrl = computed(() => {
-  if (!currentImage.value?.url) {
+  const url = currentImage.value?.url
+  if (!url) {
     return 'https://placehold.co/1200x700?text=Mazari'
   }
-  return currentImage.value.url
+  return imgUrl(url) // 🔥 DAS ist die einzige wichtige Änderung
 })
 
 const currentImageAlt = computed(() => {

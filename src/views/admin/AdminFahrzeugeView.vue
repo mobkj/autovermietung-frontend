@@ -3,6 +3,7 @@ import NavBar from '@/components/NavBar.vue'
 import VehicleCard from '@/components/vehicles/VehicleCard.vue'
 import { onMounted, ref } from 'vue'
 import vehicleService from '@/api/vehicleService'
+import { imgUrl } from '@/api/imgUrl'
 
 // =====================
 // STATE
@@ -14,9 +15,6 @@ const error = ref('')
 const modalOpen = ref(false)
 const saving = ref(false)
 const modalError = ref('')
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 
 // Edit-Form (nur Stammdaten)
 const emptyForm = () => ({
@@ -61,12 +59,6 @@ const onNewImagesChange = (e) => {
 
   // Input resetten
   e.target.value = ''
-}
-
-const resolveImageUrl = (url) => {
-  if (!url) return 'https://placehold.co/520x320?text=Mazari'
-  if (url.startsWith('http')) return url
-  return API_BASE_URL + url
 }
 
 // =====================
@@ -280,7 +272,7 @@ async function saveEdit() {
                   <div class="image-thumb-wrap">
                     <img
                       class="image-thumb"
-                      :src="replacePreviews[img.id] || resolveImageUrl(img.url)"
+                      :src="replacePreviews[img.id] || imgUrl(img.url)"
                       :alt="`Bild ${img.sortierung}`"
                     />
                     <span v-if="img.vorschau" class="badge">Vorschau</span>

@@ -32,18 +32,18 @@ async function submitForm() {
             target="_blank"
             rel="noopener"
           >
-            Egerstraße 2, 65205 Wiesbaden – Erbenheim
+            Am Königsfloß 6, 55252 in Mainz Kastel
           </a>
         </div>
 
         <div class="info-item">
           <i class="fa-solid fa-phone"></i>
-          <a href="tel:+491000000000">+49 1X XX XX XX XX</a>
+          <a href="tel:+491000000000">+49 15 20 21 48 80 2</a>
         </div>
 
         <div class="info-item">
           <i class="fa-solid fa-envelope"></i>
-          <a href="mailto:info@mazari-cars.de">info@mazari-cars.de</a>
+          <a href="mailto:info@mazari-cars.de">info@mazariautovermietung.com</a>
         </div>
 
         <div class="info-item">

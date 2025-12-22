@@ -18,28 +18,28 @@ import Navbar from '@/components/NavBar.vue'
 
         <!-- TODO: Firmennamen & Rechtsform anpassen -->
         <p>
-          <strong>Unternehmen:</strong> Mazari Autovermietung
+          <strong>Unternehmen:</strong> Mazari Autovermietung, Einzelunternehmen
           <!-- TODO: Rechtsform ergänzen, z. B. Einzelunternehmen / GmbH -->
         </p>
 
         <!-- TODO: Adresse prüfen/anpassen -->
         <p>
           <strong>Adresse:</strong><br />
-          Egerstraße 2<br />
-          65205 Wiesbaden – Erbenheim
+          Am Königsfloß 6<br />
+          55252 - Mainz Kastel
         </p>
 
         <!-- TODO: Kontaktdaten prüfen/anpassen -->
         <p>
           <strong>Kontakt:</strong><br />
-          Telefon: <a href="tel:+49 162 7499403">+49 162 7499403</a><br />
-          E-Mail: <a href="mailto:mkgv.wiesbaden@gmail.com">mkgv.wiesbaden@gmail.com</a>
+          Telefon: <a href="tel:+49 152 02148802">+49 152 02148802</a><br />
+          E-Mail: <a href="mailto:info@mazariautovermietung.com">info@mazariautovermietung.com</a>
         </p>
 
         <!-- TODO: Verantwortliche Person(en) eintragen -->
         <p>
           <strong>Vertretungsberechtigte Person:</strong><br />
-          Max Mustermann
+          Mariam Mazari
           <!-- TODO: richtigen Namen eintragen -->
         </p>
 
@@ -58,7 +58,7 @@ import Navbar from '@/components/NavBar.vue'
         <!-- TODO: Nur verwenden, wenn vorhanden -->
         <p>
           <strong>Umsatzsteuer-ID:</strong><br />
-          DE123456789
+          Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.
           <!-- TODO: USt-IdNr. eintragen oder Abschnitt löschen -->
         </p>
       </section>
