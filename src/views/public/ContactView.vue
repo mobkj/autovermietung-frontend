@@ -1,14 +1,66 @@
 <script setup lang="ts">
 import NavBar from '@/components/NavBar.vue'
 import { ref } from 'vue'
+import api from '@/api/axios' // <- nutzt dein Axios-Instance mit baseURL/env
 
 const success = ref(false)
-// TODO EMAIL SERVICE
+const loading = ref(false)
+const error = ref('')
+
+// Form State
+const name = ref('')
+const email = ref('')
+const subject = ref('')
+const message = ref('')
+
+// simple spam honeypot (muss leer bleiben)
+const gotcha = ref('')
 
 async function submitForm() {
-  alert('Emall Cotroller wird noch impkemetier')
+  success.value = false
+  error.value = ''
+
+  // Honeypot gefüllt => Bot => still "erfolgreich" tun
+  if (gotcha.value) {
+    success.value = true
+    return
+  }
+
+  if (!name.value.trim() || !email.value.trim() || !message.value.trim()) {
+    error.value = 'Bitte Name, E-Mail und Nachricht ausfüllen.'
+    return
+  }
+
+  try {
+    loading.value = true
+
+    await api.post('/api/contact', {
+      name: name.value.trim(),
+      email: email.value.trim(),
+      subject: subject.value.trim(),
+      message: message.value.trim(),
+      gotcha: gotcha.value.trim(),
+    })
+
+    success.value = true
+
+    // reset
+    name.value = ''
+    email.value = ''
+    subject.value = ''
+    message.value = ''
+    gotcha.value = ''
+  } catch (e) {
+    error.value =
+      e?.response?.data?.message ||
+      e?.message ||
+      'Nachricht konnte nicht gesendet werden. Bitte später erneut versuchen.'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
+
 <template>
   <div>
     <nav-bar />
@@ -37,7 +89,7 @@ async function submitForm() {
 
         <div class="info-item">
           <i class="fa-solid fa-phone"></i>
-          <a href="tel:+491000000000">+49 15 20 21 48 80 2</a>
+          <a href="tel:+4915202148802">+49 15 20 21 48 80 2</a>
         </div>
 
         <div class="info-item">
@@ -60,19 +112,19 @@ async function submitForm() {
       <form @submit.prevent="submitForm" class="contact-form">
         <div class="form-group">
           <label for="name">Name</label>
-          <input id="name" name="name" type="text" required />
+          <input id="name" v-model="name" type="text" required />
         </div>
 
         <div class="form-group">
           <label for="email">E-Mail</label>
-          <input id="email" name="_replyto" type="email" required />
+          <input id="email" v-model="email" type="email" required />
         </div>
 
         <div class="form-group">
           <label for="subject">Betreff</label>
           <input
             id="subject"
-            name="subject"
+            v-model="subject"
             type="text"
             placeholder="z. B. Anfrage zu BMW M8, Kaution, Abholung..."
           />
@@ -82,20 +134,23 @@ async function submitForm() {
           <label for="message">Nachricht</label>
           <textarea
             id="message"
-            name="message"
+            v-model="message"
             rows="5"
             placeholder="Wie können wir dir weiterhelfen?"
             required
           ></textarea>
         </div>
 
-        <!-- Erfolgsmeldung -->
+        <!-- Erfolg / Fehler -->
+        <p v-if="error" class="success-msg" style="color: #dc2626">❌ {{ error }}</p>
         <p v-if="success" class="success-msg">✅ Nachricht erfolgreich gesendet!</p>
 
         <!-- Anti-Spam -->
-        <input type="text" name="_gotcha" style="display: none" />
+        <input v-model="gotcha" type="text" name="_gotcha" style="display: none" />
 
-        <button type="submit" class="send-btn">Nachricht senden</button>
+        <button type="submit" class="send-btn" :disabled="loading">
+          {{ loading ? 'Sende…' : 'Nachricht senden' }}
+        </button>
       </form>
 
       <p class="privacy-hint">
@@ -108,6 +163,7 @@ async function submitForm() {
 </template>
 
 <style scoped>
+/* dein CSS bleibt 1:1 wie du es hast */
 .contact-section {
   padding: 6rem 2rem 8rem;
   text-align: center;
@@ -119,7 +175,6 @@ async function submitForm() {
   gap: 4rem;
 }
 
-/* Überschrift & Untertitel */
 h1 {
   font-size: 2.4rem;
   margin-bottom: 0.75rem;
@@ -133,7 +188,6 @@ h1 {
   line-height: 1.6;
 }
 
-/* Kontaktinformationen */
 .contact-info {
   position: relative;
   background: linear-gradient(
@@ -155,7 +209,6 @@ h1 {
   overflow: hidden;
 }
 
-/* Sanfter Glow */
 .contact-info::before {
   content: '';
   position: absolute;
@@ -185,7 +238,6 @@ h1 {
   letter-spacing: 0.5px;
 }
 
-/* Kontakt-Info-Items */
 .info-item {
   display: flex;
   align-items: center;
@@ -216,7 +268,6 @@ h1 {
   transition: color 0.3s ease;
 }
 
-/* Hover-Effekt */
 .info-item:hover {
   transform: translateY(-2px);
   color: var(--mazari-accent);
@@ -229,7 +280,6 @@ h1 {
   color: var(--mazari-accent);
 }
 
-/* Formular */
 .contact-form {
   background: #ffffff;
   width: 750px;
@@ -270,7 +320,6 @@ textarea:focus {
   background: #f8fafc;
 }
 
-/* Erfolgsmeldung */
 .success-msg {
   text-align: center;
   margin: 1.5rem 0 0.5rem;
@@ -278,7 +327,6 @@ textarea:focus {
   color: #16a34a;
 }
 
-/* Button */
 .send-btn {
   display: block;
   margin: 2rem auto 0;
@@ -296,13 +344,16 @@ textarea:focus {
     transform 0.2s ease,
     box-shadow 0.2s ease;
 }
-.send-btn:hover {
+.send-btn:hover:enabled {
   background: var(--mazari-primary-dark);
   transform: translateY(-2px);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.22);
 }
+.send-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
 
-/* Datenschutz-Hinweis */
 .privacy-hint {
   margin-top: 2rem;
   font-size: 0.9rem;
@@ -330,7 +381,6 @@ textarea:focus {
   text-shadow: 0 0 5px rgba(245, 181, 68, 0.4);
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .contact-section {
     gap: 2.5rem;

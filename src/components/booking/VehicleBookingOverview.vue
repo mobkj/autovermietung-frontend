@@ -948,7 +948,9 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
-.calendar-cell:not(.is-empty):not(.is-past):not(.is-blocked):hover {
+.calendar-cell:not(.is-empty):not(.is-past):not(.is-blocked-reserviert):not(
+    .is-blocked-bezahlt
+  ):hover {
   background: rgba(6, 69, 127, 0.08);
 }
 
