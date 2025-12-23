@@ -178,7 +178,7 @@ onMounted(async () => {
       <div class="vehicle-grid">
         <!-- Loading Skeleton (immer z.B. 3 Platzhalter) -->
         <template v-if="loadingVehicles">
-          <div class="vehicle-card" v-for="i in vehicles.length" :key="i">
+          <div class="vehicle-card" v-for="i in 3" :key="i">
             <img src="https://placehold.co/520x320?text=Lade..." alt="Loading" />
             <div class="vehicle-body">
               <h3>Lade Fahrzeug...</h3>

@@ -8,9 +8,33 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// Alles, was öffentlich sein soll:
+const PUBLIC_PATHS = [
+  '/api/fahrzeuge', // inkl. /api/fahrzeuge/123 via startsWith
+  '/api/contact',
+  '/auth/login',
+  '/auth/register',
+  '/api/stripe/webhook',
+  '/uploads',
+]
+
 api.interceptors.request.use((config) => {
   const auth = useAuthStore()
-  if (auth?.token) config.headers.Authorization = `Bearer ${auth.token}`
+  const url = config.url || ''
+
+  const isPublic = PUBLIC_PATHS.some((p) => url.startsWith(p))
+
+  // ✅ Public Requests immer ohne Authorization
+  if (isPublic) {
+    if (config.headers) delete config.headers.Authorization
+    return config
+  }
+
+  // ✅ Nur protected Requests bekommen Token
+  if (auth?.token) {
+    config.headers.Authorization = `Bearer ${auth.token}`
+  }
+
   return config
 })
 
